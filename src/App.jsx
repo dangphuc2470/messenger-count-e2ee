@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import avatarMap from './avatar_map.json';
+import { CHAT_TYPES, PERSONAL_REACTION_PREFIXES, UNKNOWN_SENDER } from './constants';
 import { 
   BarChart2, MessageSquare, Shield, Users, 
   FolderOpen, Calendar, Image, FileText, ChevronRight, 
@@ -646,10 +647,10 @@ function App() {
   };
 
   const getTranslatedChatType = (type) => {
-    if (type === 'Cá nhân' || type === 'Individual') return t.individual;
-    if (type === 'Nhóm') return t.group;
-    if (type === 'Dating') return t.dating;
-    if (type === 'Trang' || type === 'Page') return t.page;
+    if (type === CHAT_TYPES.INDIVIDUAL) return t.individual;
+    if (type === CHAT_TYPES.GROUP) return t.group;
+    if (type === CHAT_TYPES.DATING) return t.dating;
+    if (type === CHAT_TYPES.PAGE) return t.page;
     return type;
   };
 
@@ -881,10 +882,10 @@ function App() {
     .filter(g => g.title.toLowerCase().includes(searchQuery.toLowerCase()))
     .filter(g => {
       if (filterType === 'all') return true;
-      if (filterType === 'individual') return g.type === 'Cá nhân';
-      if (filterType === 'group') return g.type === 'Nhóm';
-      if (filterType === 'dating') return g.type === 'Dating';
-      if (filterType === 'page') return g.type === 'Trang';
+      if (filterType === 'individual') return g.type === CHAT_TYPES.INDIVIDUAL;
+      if (filterType === 'group') return g.type === CHAT_TYPES.GROUP;
+      if (filterType === 'dating') return g.type === CHAT_TYPES.DATING;
+      if (filterType === 'page') return g.type === CHAT_TYPES.PAGE;
       return true;
     })
     .sort((a, b) => {
@@ -903,22 +904,22 @@ function App() {
   const isAllSelected = selectedGroups.size === rawGroups.length && rawGroups.length > 0;
   const isNoneSelected = selectedGroups.size === 0;
 
-  const individualIds = rawGroups.filter(g => g.type === 'Cá nhân').map(g => g.id);
+  const individualIds = rawGroups.filter(g => g.type === CHAT_TYPES.INDIVIDUAL).map(g => g.id);
   const isOnlyIndividualSelected = individualIds.length > 0 && 
     selectedGroups.size === individualIds.length && 
     individualIds.every(id => selectedGroups.has(id));
 
-  const groupIds = rawGroups.filter(g => g.type === 'Nhóm').map(g => g.id);
+  const groupIds = rawGroups.filter(g => g.type === CHAT_TYPES.GROUP).map(g => g.id);
   const isOnlyGroupSelected = groupIds.length > 0 && 
     selectedGroups.size === groupIds.length && 
     groupIds.every(id => selectedGroups.has(id));
 
-  const datingIds = rawGroups.filter(g => g.type === 'Dating').map(g => g.id);
+  const datingIds = rawGroups.filter(g => g.type === CHAT_TYPES.DATING).map(g => g.id);
   const isOnlyDatingSelected = datingIds.length > 0 && 
     selectedGroups.size === datingIds.length && 
     datingIds.every(id => selectedGroups.has(id));
 
-  const pageIds = rawGroups.filter(g => g.type === 'Trang').map(g => g.id);
+  const pageIds = rawGroups.filter(g => g.type === CHAT_TYPES.PAGE).map(g => g.id);
   const isOnlyPageSelected = pageIds.length > 0 && 
     selectedGroups.size === pageIds.length && 
     pageIds.every(id => selectedGroups.has(id));
@@ -1123,7 +1124,7 @@ function App() {
                 </button>
                 
                 <button
-                  onClick={() => selectOnlyType('Cá nhân')}
+                  onClick={() => selectOnlyType(CHAT_TYPES.INDIVIDUAL)}
                   className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
                     isOnlyIndividualSelected 
                       ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm' 
@@ -1134,7 +1135,7 @@ function App() {
                 </button>
                 
                 <button
-                  onClick={() => selectOnlyType('Nhóm')}
+                  onClick={() => selectOnlyType(CHAT_TYPES.GROUP)}
                   className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
                     isOnlyGroupSelected 
                       ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm' 
@@ -1144,9 +1145,9 @@ function App() {
                   {t.selectOnlyGroup}
                 </button>
 
-                {rawGroups.some(g => g.type === 'Dating') && (
+                {rawGroups.some(g => g.type === CHAT_TYPES.DATING) && (
                   <button
-                    onClick={() => selectOnlyType('Dating')}
+                    onClick={() => selectOnlyType(CHAT_TYPES.DATING)}
                     className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
                       isOnlyDatingSelected 
                         ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm' 
@@ -1157,9 +1158,9 @@ function App() {
                   </button>
                 )}
 
-                {rawGroups.some(g => g.type === 'Trang') && (
+                {rawGroups.some(g => g.type === CHAT_TYPES.PAGE) && (
                   <button
-                    onClick={() => selectOnlyType('Trang')}
+                    onClick={() => selectOnlyType(CHAT_TYPES.PAGE)}
                     className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
                       isOnlyPageSelected 
                         ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm' 
@@ -1511,10 +1512,10 @@ function App() {
                         <option value="all">{t.filterAll}</option>
                         <option value="individual">{t.individual}</option>
                         <option value="group">{t.group}</option>
-                        {analyzedGroups.some(g => g.type === 'Dating') && (
+                        {analyzedGroups.some(g => g.type === CHAT_TYPES.DATING) && (
                           <option value="dating">{t.dating}</option>
                         )}
-                        {analyzedGroups.some(g => g.type === 'Trang') && (
+                        {analyzedGroups.some(g => g.type === CHAT_TYPES.PAGE) && (
                           <option value="page">{t.page}</option>
                         )}
                       </select>
@@ -1831,7 +1832,7 @@ function App() {
                             return (
                               <div key={name} className="text-sm">
                                 <div className="flex justify-between text-[#1D1B20] mb-1 font-semibold">
-                                  <span className="truncate max-w-xs">{name}</span>
+                                  <span className="truncate max-w-xs">{name === UNKNOWN_SENDER ? (lang === 'vi' ? 'Người tham gia' : 'Participant') : name}</span>
                                   <span className="font-mono text-xs">{count.toLocaleString()} tin ({pct}%)</span>
                                 </div>
                                 <div className="w-full bg-[#E7E0EC] h-2 rounded-full overflow-hidden">
@@ -1974,8 +1975,10 @@ function App() {
                             className={`flex flex-col max-w-[75%] ${isMe ? 'self-end items-end' : 'self-start items-start'}`}
                           >
                             {/* Sender name for groups */}
-                            {!isMe && selectedGroupDetails.type === 'Nhóm' && (
-                              <span className="text-[10px] text-[#49454F] font-bold mb-1 pl-2">{msg.sender}</span>
+                            {!isMe && selectedGroupDetails.type === CHAT_TYPES.GROUP && (
+                              <span className="text-[10px] text-[#49454F] font-bold mb-1 pl-2">
+                                {msg.sender === UNKNOWN_SENDER ? (lang === 'vi' ? 'Người tham gia' : 'Participant') : msg.sender}
+                              </span>
                             )}
 
                             {/* Bubble */}

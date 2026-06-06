@@ -49,6 +49,31 @@ function decodeFBString(str) {
   }
 }
 
+// ─── Constants (mirrors src/constants.js — keep in sync) ───────────────────
+// Classic Web Worker cannot import modules, so we duplicate constants here.
+// When updating values, update src/constants.js as well.
+const CHAT_TYPES = {
+  INDIVIDUAL: 'individual',
+  GROUP: 'group',
+  DATING: 'dating',
+  PAGE: 'page',
+};
+
+const REACTION_PATTERNS = [
+  /đã bày tỏ cảm xúc.*về tin nhắn/i,
+  /reacted to.*message/i,
+  /b\u00c3\u00a0y t\u00e1\u00bb\u008f c\u00e1\u00ba\u00a3m x\u00c3\u00bac/i,
+];
+
+const PERSONAL_REACTION_PREFIXES = [
+  /^(Bạn|You)\s/i,
+  /^(B\u00e1\u00ba\u00a1n|B\u00e1\xba\xa1n)\s/i,
+];
+
+const UNKNOWN_SENDER = 'Unknown';
+const DATING_SELF_LABEL = 'Bạn';
+// ───────────────────────────────────────────────────────────────────────────
+
 // isCurrentUser: checks against the detected owner name (set after analysis)
 let detectedOwnerName = null;
 function isCurrentUser(senderName) {
@@ -56,9 +81,9 @@ function isCurrentUser(senderName) {
   if (detectedOwnerName) {
     return senderName === detectedOwnerName;
   }
-  // Fallback: generic markers
+  // Fallback: generic markers only (no hardcoded personal names)
   const normalized = senderName.toLowerCase();
-  return normalized === 'bạn' || normalized === 'you';
+  return PERSONAL_REACTION_PREFIXES.some(p => p.test(normalized)) || normalized === 'bạn' || normalized === 'you';
 }
 
 // Listen for messages from the Main Thread
@@ -117,12 +142,7 @@ async function scanFiles(files) {
           const c = msg.content || msg.text || msg.body || '';
           if (c) {
             const decoded = decodeFBString(c);
-            if (
-              /đã bày tỏ cảm xúc.*về tin nhắn/i.test(decoded) || 
-              /reacted to.*message/i.test(decoded) ||
-              /b\u00c3\u00a0y t\u00e1\u00bb\u008f c\u00e1\u00ba\u00a3m x\u00c3\u00bac/i.test(c) ||
-              /reacted to.*message/i.test(c)
-            ) {
+            if (REACTION_PATTERNS.some(p => p.test(decoded) || p.test(c))) {
               reactionCount++;
               continue;
             }
@@ -150,12 +170,7 @@ async function scanFiles(files) {
           const c = msg.content || msg.text || msg.body || '';
           if (c) {
             const decoded = decodeFBString(c);
-            if (
-              /đã bày tỏ cảm xúc.*về tin nhắn/i.test(decoded) || 
-              /reacted to.*message/i.test(decoded) ||
-              /b\u00c3\u00a0y t\u00e1\u00bb\u008f c\u00e1\u00ba\u00a3m x\u00c3\u00bac/i.test(c) ||
-              /reacted to.*message/i.test(c)
-            ) {
+            if (REACTION_PATTERNS.some(p => p.test(decoded) || p.test(c))) {
               reactionCount++;
               continue;
             }
@@ -203,7 +218,7 @@ async function scanFiles(files) {
       groupsMap.set(signature, {
         id: signature,
         title: item.title,
-        type: item.type === 'dating' ? 'Dating' : (item.participants.length > 2 ? 'Nhóm' : (item.participants.length <= 1 ? 'Trang' : 'Cá nhân')),
+        type: item.type === 'dating' ? CHAT_TYPES.DATING : (item.participants.length > 2 ? CHAT_TYPES.GROUP : (item.participants.length <= 1 ? CHAT_TYPES.PAGE : CHAT_TYPES.INDIVIDUAL)),
         participants: item.participants,
         files: [],
         totalMessages: 0,
@@ -365,12 +380,12 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
         } else {
           signature = `chat_${title}`;
         }
-        type = participants.length > 2 ? 'Nhóm' : (participants.length <= 1 ? 'Trang' : 'Cá nhân');
+        type = participants.length > 2 ? CHAT_TYPES.GROUP : (participants.length <= 1 ? CHAT_TYPES.PAGE : CHAT_TYPES.INDIVIDUAL);
       } else if (isDating) {
         title = decodeFBString(json.recipient);
         participants = [title];
         signature = `dating_${title}`;
-        type = 'Dating';
+        type = CHAT_TYPES.DATING;
       } else {
         continue;
       }
@@ -409,7 +424,7 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
         processedMessageCount++;
         
         // 1. Sender
-        let sender = 'Người tham gia';
+        let sender = UNKNOWN_SENDER;
         if (isStandard) {
           const rawSender = msg.sender_name || msg.senderName;
           if (rawSender) {
@@ -437,12 +452,7 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
         let isReactionMsg = false;
         if (contentStr) {
           decodedContent = decodeFBString(contentStr);
-          isReactionMsg = (
-            /đã bày tỏ cảm xúc.*về tin nhắn/i.test(decodedContent) ||
-            /reacted to.*message/i.test(decodedContent) ||
-            /b\u00c3\u00a0y t\u00e1\u00bb\u008f c\u00e1\u00ba\u00a3m x\u00c3\u00bac/i.test(contentStr) ||
-            /reacted to.*message/i.test(contentStr)
-          );
+          isReactionMsg = REACTION_PATTERNS.some(p => p.test(decodedContent) || p.test(contentStr));
         }
 
         const isMe = isCurrentUser(sender);
@@ -451,11 +461,7 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
           stats.reactionCount = (stats.reactionCount || 0) + 1;
           globalStats.totalReactions = (globalStats.totalReactions || 0) + 1;
 
-          const isPersonalReaction = (
-            /^(Bạn|You)/i.test(decodedContent) ||
-            /^(B\u00e1\u00ba\u00a1n|Báº¡n|You)/i.test(contentStr) ||
-            isMe
-          );
+          const isPersonalReaction = isMe || PERSONAL_REACTION_PREFIXES.some(p => p.test(decodedContent) || p.test(contentStr));
 
           if (isPersonalReaction) {
             stats.personal.reactionCount = (stats.personal.reactionCount || 0) + 1;
@@ -475,7 +481,7 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
         stats.senderCounts[sender] = (stats.senderCounts[sender] || 0) + 1;
 
         // Track each unique sender-group pair to detect owner (appears in most DM groups)
-        if (type === 'Cá nhân' || type === 'E2EE') {
+        if (type === CHAT_TYPES.INDIVIDUAL) {
           const dmKey = `${sender}__${targetGroupId}`;
           if (!ownerSenderFreq[sender]) ownerSenderFreq[sender] = new Set();
           ownerSenderFreq[sender].add(targetGroupId);
@@ -727,7 +733,7 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
         ...group.personal,
         wordFrequencies: Object.fromEntries(sortedWordsPersonal)
       },
-      participants: group.type === 'Dating' ? ['Bạn', group.title] : group.participants
+      participants: group.type === CHAT_TYPES.DATING ? [DATING_SELF_LABEL, group.title] : group.participants
     };
   });
 
