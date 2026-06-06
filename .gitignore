@@ -27,3 +27,4 @@ dist-ssr
 public/*_files/
 src/avatar_map.json
 *.html
+!index.html
