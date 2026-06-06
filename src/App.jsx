@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { Chart, registerables } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 
 // Register Chart.js components
 Chart.register(...registerables, zoomPlugin);
