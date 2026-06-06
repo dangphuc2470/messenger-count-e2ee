@@ -1,0 +1,105 @@
+/* Elegant and Expressive Typography from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+@import "tailwindcss";
+
+:root {
+  /* Material 3 Light Mode Color System Tokens */
+  --md-primary: #0B57D0;
+  --md-on-primary: #FFFFFF;
+  --md-primary-container: #D3E3FD;
+  --md-on-primary-container: #041E49;
+  --md-secondary: #4A607A;
+  --md-on-secondary: #FFFFFF;
+  --md-secondary-container: #D6E4FF;
+  --md-on-secondary-container: #001B3D;
+  --md-background: #F8FAFC;
+  --md-on-background: #191C20;
+  --md-surface: #F8FAFC;
+  --md-on-surface: #191C20;
+  --md-surface-variant: #DFE3E8;
+  --md-on-surface-variant: #43474E;
+  --md-outline: #73777F;
+  --md-outline-variant: #C3C7CF;
+  --md-surface-container: #F0F4F9;
+  --md-surface-container-high: #E9EEF6;
+  --md-surface-container-highest: #E1E2E5;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  background-color: var(--md-background);
+  color: var(--md-on-background);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+}
+
+/* Material 3 Expressive Containers & Elevation */
+.m3-card {
+  background-color: var(--md-surface-container);
+  border-radius: 24px; /* Extra rounded - M3 standard */
+  border: 1px solid var(--md-surface-variant);
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.m3-card-hover:hover {
+  background-color: var(--md-surface-container-high);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.m3-card-high {
+  background-color: var(--md-surface-container-high);
+  border-radius: 28px;
+  border: none;
+}
+
+/* Scrollbars - styled cleanly for Light Mode */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--md-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--md-outline-variant);
+  border-radius: 9999px;
+  border: 2px solid var(--md-background);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--md-outline);
+}
+
+/* Soft dot grid background pattern, no gradients */
+.grid-bg {
+  background-size: 30px 30px;
+  background-image: 
+    radial-gradient(var(--md-outline-variant) 0.75px, transparent 0.75px);
+  background-color: var(--md-background);
+}
+
+/* Custom rounded styles for chat bubbles */
+.chat-bubble-user {
+  background-color: var(--md-primary);
+  color: var(--md-on-primary);
+  border-radius: 20px 20px 4px 20px;
+}
+
+.chat-bubble-friend {
+  background-color: var(--md-surface-container-highest);
+  color: var(--md-on-background);
+  border-radius: 20px 20px 20px 4px;
+}
+
+/* Hide default file input button */
+input[type="file"]::file-selector-button {
+  display: none;
+}
