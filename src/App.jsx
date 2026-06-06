@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CHAT_TYPES, PERSONAL_REACTION_PREFIXES, UNKNOWN_SENDER, MEDIA_TYPES } from './constants';
 import {
   BarChart2, MessageSquare, Shield, Users,
@@ -941,7 +941,7 @@ function App() {
     pageIds.every(id => selectedGroups.has(id));
 
   return (
-    <div className="relative min-h-screen grid-bg pb-12 text-[#1D1B20]">
+    <div className="relative min-h-screen grid-bg pb-4 text-[#1D1B20] flex flex-col">
 
       {/* M3 Controls Top-Right Bar */}
       <div className="absolute top-4 right-4 flex items-center gap-4 z-20">
@@ -964,7 +964,7 @@ function App() {
         </div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 pt-8 pb-4 sm:px-6 lg:px-8 flex flex-col flex-grow w-full">
 
         {/* ==================== SCREEN 1: LANDING ==================== */}
         {screen === 'landing' && (
@@ -1681,7 +1681,7 @@ function App() {
         )}
 
         {/* Footer */}
-        <footer className="mt-16 pt-8 border-t border-[#CAC4D0] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#625B71]">
+        <footer className="mt-auto pt-6 pb-2 border-t border-[#CAC4D0] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#625B71]">
           <div className="flex items-center gap-1.5 font-medium">
             <span>© {new Date().getFullYear()} {t.title}</span>
             <span>•</span>
