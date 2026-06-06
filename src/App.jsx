@@ -4,10 +4,11 @@ import {
   BarChart2, MessageSquare, Shield, Users,
   FolderOpen, Calendar, Image, FileText, ChevronRight,
   Search, ArrowUpDown, X, Loader2, Info, ArrowLeft, RefreshCw,
-  Clock, Award, MessageCircle, Sparkles, ChevronDown
+  Clock, Award, MessageCircle, Sparkles, ChevronDown, Download
 } from 'lucide-react';
 import { Chart, registerables } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
+import html2canvas from 'html2canvas';
 
 // Register Chart.js components
 Chart.register(...registerables, zoomPlugin);
@@ -105,7 +106,18 @@ const TRANSLATIONS = {
     filterTypeLabel: "Bộ lọc loại chat",
     filterAll: "Tất cả hội thoại",
     footerAuthor: "Phát triển bởi ",
-    footerSource: "Mã nguồn GitHub"
+    footerSource: "Mã nguồn GitHub",
+    btnExportImage: "Xuất ảnh bảng xếp hạng",
+    exportModalTitle: "Xuất ảnh Bảng xếp hạng",
+    exportSelectTop: "Chọn số lượng liên hệ muốn xuất:",
+    exportTopOption: (n) => `Top ${n} liên hệ`,
+    exportAllOption: "Tất cả liên hệ",
+    exportBtnDownload: "Tải ảnh về",
+    exportGenerating: "Đang tạo ảnh...",
+    exportFilterLabel: "Bộ lọc",
+    exportSortLabel: "Sắp xếp theo",
+    exportDateRangeLabel: "Thời gian hoạt động",
+    exportBtnDownloadJson: "Tải file JSON"
   },
   en: {
     langLabel: "English",
@@ -199,7 +211,18 @@ const TRANSLATIONS = {
     filterTypeLabel: "Filter type",
     filterAll: "All conversations",
     footerAuthor: "Developed by ",
-    footerSource: "GitHub Source Code"
+    footerSource: "GitHub Source Code",
+    btnExportImage: "Export Leaderboard",
+    exportModalTitle: "Export Leaderboard Image",
+    exportSelectTop: "Select number of contacts to export:",
+    exportTopOption: (n) => `Top ${n} contacts`,
+    exportAllOption: "All contacts",
+    exportBtnDownload: "Download Image",
+    exportGenerating: "Generating image...",
+    exportFilterLabel: "Filter",
+    exportSortLabel: "Sorted by",
+    exportDateRangeLabel: "Active date range",
+    exportBtnDownloadJson: "Download JSON"
   }
 };
 
@@ -248,6 +271,12 @@ function App() {
   const [filterType, setFilterType] = useState('all'); // 'all' | 'individual' | 'group' | 'dating'
   const [chatSortOrder, setChatSortOrder] = useState('oldest'); // 'oldest' | 'newest'
   const [statsMode, setStatsMode] = useState('general'); // 'personal' | 'general'
+
+  // Leaderboard Image Export States
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportLimit, setExportLimit] = useState(10); // 10 | 20 | 30 | 50 | -1 (all)
+  const [isExporting, setIsExporting] = useState(false);
+  const exportAreaRef = useRef(null);
 
   // Web Worker Reference
   const workerRef = useRef(null);
@@ -314,6 +343,60 @@ function App() {
 
   // Chat viewport scroll ref
   const chatContainerRef = useRef(null);
+
+  const handleExportImage = async () => {
+    if (!exportAreaRef.current) return;
+    setIsExporting(true);
+    // Let DOM update and style settle
+    await new Promise(resolve => setTimeout(resolve, 600));
+    try {
+      const canvas = await html2canvas(exportAreaRef.current, {
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#F8FAFC',
+        scale: 2, // Retain details on high density screens
+        logging: false
+      });
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `messenger_leaderboard_top_${exportLimit === -1 ? 'all' : exportLimit}.png`;
+      link.href = dataUrl;
+      link.click();
+      setShowExportModal(false);
+    } catch (error) {
+      console.error('Failed to export image', error);
+      alert(lang === 'vi' ? 'Lỗi khi xuất ảnh. Vui lòng thử lại!' : 'Failed to generate image. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportJson = () => {
+    const exportGroups = filteredAndSortedGroups
+      .slice(0, exportLimit === -1 ? undefined : exportLimit)
+      .map((group, index) => {
+        const totalMedia = Object.values(group.mediaCounts).reduce((acc, val) => acc + val, 0);
+        return {
+          rank: index + 1,
+          title: group.title,
+          type: group.type,
+          messageCount: group.messageCount,
+          reactionCount: group.reactionCount || 0,
+          mediaCount: totalMedia,
+          wordCount: group.totalWords,
+          characterCount: group.totalCharacters,
+          firstMessage: group.dateRange?.start || null,
+          lastMessage: group.dateRange?.end || null
+        };
+      });
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportGroups, null, 2));
+    const link = document.createElement('a');
+    link.download = `messenger_leaderboard_top_${exportLimit === -1 ? 'all' : exportLimit}.json`;
+    link.href = dataStr;
+    link.click();
+    setShowExportModal(false);
+  };
 
   // Initialize Web Worker
   useEffect(() => {
@@ -1542,6 +1625,15 @@ function App() {
                       </select>
                     </div>
 
+                    {/* Export Image Button */}
+                    <button
+                      onClick={() => setShowExportModal(true)}
+                      className="w-full md:w-auto flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-full bg-[#0B57D0] hover:bg-[#0842A0] text-white text-sm font-bold transition-all shadow cursor-pointer shrink-0"
+                    >
+                      <Download className="w-4.5 h-4.5" />
+                      <span>{t.btnExportImage}</span>
+                    </button>
+
                   </div>
 
                 </div>
@@ -2047,6 +2139,224 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* ==================== SCREEN 7: EXPORT IMAGE MODAL ==================== */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto">
+          <div className="relative w-full max-w-md rounded-[32px] bg-[#F8FAFC] border border-[#CAC4D0] p-6 sm:p-8 overflow-hidden shadow-2xl">
+            {/* Close */}
+            <button
+              onClick={() => setShowExportModal(false)}
+              className="absolute top-5 right-5 p-2.5 rounded-full bg-[#E9EEF6] hover:bg-[#E6E1E5] text-[#49454F] hover:text-[#1D1B20] transition-colors cursor-pointer border border-[#CAC4D0]"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-xl font-bold text-[#1D1B20] mb-6 flex items-center gap-2 pr-8">
+              <Image className="w-6 h-6 text-[#0B57D0]" />
+              <span>{t.exportModalTitle}</span>
+            </h3>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-[#49454F] mb-3">
+                  {t.exportSelectTop}
+                </label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {[10, 20, 30, 50, -1].map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => setExportLimit(opt)}
+                      className={`py-2 px-3 text-xs font-bold rounded-full border transition-all cursor-pointer text-center ${
+                        exportLimit === opt
+                          ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm'
+                          : 'bg-white text-[#49454F] border-[#CAC4D0] hover:bg-[#F0F4F9]'
+                      }`}
+                    >
+                      {opt === -1 ? t.exportAllOption : t.exportTopOption(opt)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-[#E9EEF6] border border-[#CAC4D0] rounded-2xl p-4 text-xs text-[#49454F] flex items-start gap-2.5">
+                <Info className="w-4 h-4 text-[#0B57D0] shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold mb-1">
+                    {lang === 'vi' ? 'Thông tin xuất ảnh:' : 'Image Export Info:'}
+                  </p>
+                  <ul className="list-disc pl-4 space-y-1">
+                    <li>{t.exportFilterLabel}: <span className="font-bold text-[#1D1B20]">{filterType === 'all' ? t.filterAll : getTranslatedChatType(filterType)}</span></li>
+                    <li>{t.exportSortLabel}: <span className="font-bold text-[#1D1B20]">{sortBy === 'messages' ? t.sortMessages : sortBy === 'reactions' ? t.sortReactions : sortBy === 'media' ? t.sortMedia : sortBy === 'words' ? t.sortWords : t.sortChars}</span></li>
+                    <li>{lang === 'vi' ? 'Số lượng xuất:' : 'Export limit:'} <span className="font-bold text-[#1D1B20]">{exportLimit === -1 ? `${filteredAndSortedGroups.length} (Tất cả)` : `${Math.min(exportLimit, filteredAndSortedGroups.length)} / ${filteredAndSortedGroups.length}`}</span></li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-3 pt-2">
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleExportImage}
+                    disabled={isExporting || filteredAndSortedGroups.length === 0}
+                    className="flex-1 py-3 rounded-full bg-[#0B57D0] hover:bg-[#0842A0] text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 shadow"
+                  >
+                    {isExporting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>{t.exportGenerating}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        <span>{t.exportBtnDownload}</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleExportJson}
+                    disabled={isExporting || filteredAndSortedGroups.length === 0}
+                    className="flex-1 py-3 rounded-full bg-[#E9EEF6] hover:bg-[#D3E3FD] text-[#0B57D0] border border-[#CAC4D0] text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-sm"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>{t.exportBtnDownloadJson}</span>
+                  </button>
+                </div>
+                <button
+                  onClick={() => setShowExportModal(false)}
+                  className="w-full py-3 rounded-full border border-[#79747E] bg-white hover:bg-[#F0F4F9] text-[#49454F] text-xs font-bold transition-all cursor-pointer"
+                >
+                  {lang === 'vi' ? 'Đóng' : 'Close'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== OFF-SCREEN EXPORT TEMPLATE ==================== */}
+      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+        <div
+          ref={exportAreaRef}
+          className="w-[1000px] bg-[#F8FAFC] text-[#1D1B20] p-12 flex flex-col gap-8"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+        >
+          {/* Logo & Header */}
+          <div className="flex items-center justify-between border-b-2 border-[#CAC4D0] pb-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3.5 rounded-3xl bg-[#D3E3FD] text-[#0B57D0]">
+                <Award className="w-10 h-10" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-black tracking-tight text-[#1D1B20]">
+                  Messenger Insights & Counter
+                </h1>
+                <p className="text-sm text-[#49454F] font-semibold mt-1">
+                  {lang === 'vi' ? 'Báo cáo Bảng xếp hạng Tương tác Facebook' : 'Facebook Messenger Contact Leaderboard Report'}
+                </p>
+              </div>
+            </div>
+            <div className="text-right text-xs text-[#625B71] font-semibold">
+              <div>{t.exportDateRangeLabel}:</div>
+              <div className="text-[#1D1B20] font-bold mt-1">
+                {globalStats && `${new Date(globalStats.dateRange?.start).toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US')} - ${new Date(globalStats.dateRange?.end).toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US')}`}
+              </div>
+            </div>
+          </div>
+
+          {/* Settings Metadata Summary */}
+          <div className="grid grid-cols-3 gap-4 bg-[#E9EEF6] border border-[#CAC4D0] rounded-3xl p-5 text-sm">
+            <div>
+              <span className="text-[#625B71] block font-semibold text-xs uppercase tracking-wider mb-1">{t.exportFilterLabel}</span>
+              <span className="font-bold text-[#1D1B20] text-base">{filterType === 'all' ? t.filterAll : getTranslatedChatType(filterType)}</span>
+            </div>
+            <div>
+              <span className="text-[#625B71] block font-semibold text-xs uppercase tracking-wider mb-1">{t.exportSortLabel}</span>
+              <span className="font-bold text-[#1D1B20] text-base">
+                {sortBy === 'messages' ? t.sortMessages : sortBy === 'reactions' ? t.sortReactions : sortBy === 'media' ? t.sortMedia : sortBy === 'words' ? t.sortWords : t.sortChars}
+              </span>
+            </div>
+            <div>
+              <span className="text-[#625B71] block font-semibold text-xs uppercase tracking-wider mb-1">{lang === 'vi' ? 'Quy mô xuất' : 'Export scope'}</span>
+              <span className="font-bold text-[#0B57D0] text-base">
+                {exportLimit === -1 ? `Top ${filteredAndSortedGroups.length}` : `Top ${Math.min(exportLimit, filteredAndSortedGroups.length)}`}
+              </span>
+            </div>
+          </div>
+
+          {/* Grid list of contacts */}
+          <div className="grid grid-cols-2 gap-6">
+            {filteredAndSortedGroups
+              .slice(0, exportLimit === -1 ? undefined : exportLimit)
+              .map((group, index) => {
+                const totalMedia = Object.values(group.mediaCounts).reduce((acc, val) => acc + val, 0);
+                const badgeColor = index === 0 ? 'bg-[#FFD700]/20 text-[#B8860B] border-[#FFD700]' :
+                                   index === 1 ? 'bg-[#C0C0C0]/20 text-[#708090] border-[#C0C0C0]' :
+                                   index === 2 ? 'bg-[#CD7F32]/20 text-[#8B4513] border-[#CD7F32]' :
+                                   'bg-[#E9EEF6] text-[#49454F] border-[#CAC4D0]';
+
+                return (
+                  <div
+                    key={group.id}
+                    className="p-5 rounded-[24px] bg-[#F0F4F9] border border-[#CAC4D0] flex flex-col justify-between relative overflow-hidden"
+                  >
+                    <div>
+                      {/* Avatar, name, rank */}
+                      <div className="flex items-center justify-between gap-3 mb-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {renderAvatar(group.title, "w-10 h-10", "text-xs")}
+                          <div className="min-w-0">
+                            <h4 className="font-black text-[#1D1B20] truncate text-sm">{group.title}</h4>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#D3E3FD] text-[#041E49] border border-[#CAC4D0] mt-1 inline-block">
+                              {getTranslatedChatType(group.type)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className={`flex items-center justify-center w-7 h-7 rounded-full border text-xs font-black ${badgeColor}`}>
+                          #{index + 1}
+                        </div>
+                      </div>
+
+                      {/* Stats Table */}
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-[#49454F] border-t border-[#CAC4D0]/50 pt-3">
+                        <div className="flex justify-between">
+                          <span>{t.sortMessages}:</span>
+                          <span className="font-bold text-[#1D1B20] font-mono">{group.messageCount.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>{t.cardTotalReactions}:</span>
+                          <span className="font-bold text-[#1D1B20] font-mono">{(group.reactionCount || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Media:</span>
+                          <span className="font-bold text-[#1D1B20] font-mono">{totalMedia.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>{lang === 'vi' ? 'Từ vựng:' : 'Words:'}</span>
+                          <span className="font-bold text-[#1D1B20] font-mono">{group.totalWords.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+
+          {/* Footer Branding */}
+          <div className="flex items-center justify-between border-t-2 border-[#CAC4D0] pt-6 mt-4 text-xs text-[#625B71] font-semibold">
+            <div className="flex items-center gap-2">
+              <span>© {new Date().getFullYear()} {t.title}</span>
+              <span>•</span>
+              <span>{lang === 'vi' ? 'Phát triển bởi Phúc Đặng' : 'Developed by Phuc Dang'}</span>
+            </div>
+            <div>
+              <span>GitHub: github.com/dangphuc2470/messenger-count-e2ee</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Details modal closing */}
 
     </div>
   );
