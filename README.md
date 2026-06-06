@@ -32,7 +32,10 @@
 5. **Trình xem lịch sử chat (Interactive Chat Viewer)**:
    - Xem lại lịch sử nhắn tin dưới dạng bong bóng chat quen thuộc, hiển thị các tệp đính kèm đi kèm (Ảnh, Video, GIF, Nhãn dán, Tin nhắn thoại, Tài liệu) và các lượt thả cảm xúc.
 6. **Nhận diện ảnh đại diện tự động**:
-   - Chỉ cần lưu trang danh sách bạn bè Facebook (lưu ý cuộn chuột xuống dưới cùng để trang web tải hết toàn bộ danh sách bạn bè rồi mới nhấn `Ctrl + S` trên trình duyệt) rồi chọn cùng lúc khi tải thư mục lên, ứng dụng sẽ tự động phục dựng và hiển thị ảnh đại diện của bạn bè.
+   - Chỉ cần lưu trang danh sách bạn bè Facebook (lưu ý cuộn chuột xuống dưới cùng để trang web tải hết toàn bộ danh sách bạn bè rồi mới nhấn `Ctrl + S` trên trình duyệt) rồi chọn cùng lúc khi tải thư mục lên, ứng dụng sẽ tự động gán và hiển thị ảnh đại diện của bạn bè.
+7. **Xuất bảng xếp hạng (Ảnh & JSON)**:
+   - Hỗ trợ xuất bảng xếp hạng top tương tác thành hình ảnh chất lượng cao để chia sẻ. Tùy chọn ẩn danh (ẩn tên/ẩn ảnh đại diện bạn bè) hoặc ẩn phần tổng quan.
+   - Hỗ trợ tải dữ liệu bảng xếp hạng dưới định dạng JSON để tiện lưu trữ hoặc xử lý nâng cao.
 
 ### Hướng dẫn sử dụng chi tiết
 
@@ -44,7 +47,7 @@ Facebook phân tách dữ liệu tin nhắn thông thường và tin nhắn đư
    - Chọn **Tải thông tin của bạn** (Download Your Information) -> **Yêu cầu bản tải xuống** (Request download).
    - Thiết lập cấu hình: Định dạng tệp bắt buộc là **JSON**, chất lượng file phương tiện chọn **Thấp** (để tối ưu hóa tốc độ tải và xử lý).
    - Trong danh sách dữ liệu, bạn tích chọn duy nhất phần **Tin nhắn** (Messages) giống như hình minh họa dưới đây rồi gửi yêu cầu:
-     ![Normal Messages Export Setup](screenshot/normal-message.jpg)
+     ![Normal Messages Export Setup](screenshot/normal-message.png)
 
 2. **Đối với tin nhắn mã hóa đầu cuối (E2EE)**:
    - Truy cập vào liên kết: [Facebook Secure Storage DYI](https://www.facebook.com/secure_storage/dyi)
@@ -102,6 +105,9 @@ This application operates **100% client-side**. Your data is processed entirely 
    - Browse your messaging logs in a clean chat bubble interface, including attachments (Photos, Videos, GIFs, Stickers, Audio, Documents) and reactions.
 6. **Dynamic Avatar Mapping**:
    - Save your Facebook friends web page (scroll all the way down to load your entire friends list first, then press `Ctrl + S` on your browser) and select it during directory upload to automatically render profile pictures.
+7. **Leaderboard Export (Image & JSON)**:
+   - Export your top contacts leaderboard as a high-resolution PNG image ready for sharing. Features display options to anonymize names, hide profile pictures, or hide the overview statistics block.
+   - Download leaderboard stats as a structured JSON file for backup or external analysis.
 
 ### Detailed Usage Instructions
 
@@ -113,7 +119,7 @@ Facebook splits standard messages and end-to-end encrypted (E2EE) messages into 
    - Select **Download Your Information** -> **Request a download**.
    - Configuration: Set format to **JSON** (HTML is not supported) and media quality to **Low** (to minimize download size and speed up processing).
    - In the data category selection, check only the **Messages** option as shown below:
-     ![Normal Messages Export Setup](screenshot/normal-message.jpg)
+     ![Normal Messages Export Setup](screenshot/normal-message.png)
 
 2. **End-to-End Encrypted Messages (E2EE Messages)**:
    - Go to: [Facebook Secure Storage DYI](https://www.facebook.com/secure_storage/dyi)

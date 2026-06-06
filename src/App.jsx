@@ -4,7 +4,7 @@ import {
   BarChart2, MessageSquare, Shield, Users,
   FolderOpen, Calendar, Image, FileText, ChevronRight,
   Search, ArrowUpDown, X, Loader2, Info, ArrowLeft, RefreshCw,
-  Clock, Award, MessageCircle, Sparkles, ChevronDown, Download
+  Clock, Award, MessageCircle, Sparkles, ChevronDown, Download, User
 } from 'lucide-react';
 import { Chart, registerables } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
@@ -19,10 +19,10 @@ const TRANSLATIONS = {
     langLabel: "Tiếng Việt",
     badge: "An toàn và bảo mật trên trình duyệt",
     title: "Phân tích tin nhắn Messenger",
-    subtitle: "Khám phá thống kê chi tiết các cuộc trò chuyện trên Facebook của bạn một cách an toàn. Phục dựng lịch sử tin nhắn và hiển thị bảng xếp hạng trực quan.",
+    subtitle: "Khám phá thống kê chi tiết các cuộc trò chuyện trên Facebook của bạn một cách an toàn. Dựng lại lịch sử tin nhắn và hiển thị bảng xếp hạng trực quan.",
     uploadTitle: "Chọn thư mục dữ liệu Messenger",
     uploadSub: "Nhấp để chọn thư mục your_facebook_activity đã giải nén của bạn.",
-    uploadAvatarHint: "Muốn có ảnh đại diện? Tải trang bạn bè Facebook về (Ctrl+S) và đặt vào cùng thư mục.",
+    uploadAvatarHint: "Muốn hiển thị ảnh đại diện? Tải trang danh sách bạn bè của bạn trên Facebook về (Ctrl+S) và đặt vào cùng thư mục.",
     secureTitle: "Bảo mật tuyệt đối",
     secureDesc: "Xử lý cục bộ hoàn toàn tại trình duyệt thông qua Web Worker. Không tải tệp tin nào lên máy chủ.",
     mergeTitle: "Gộp tin nhắn E2EE",
@@ -276,6 +276,9 @@ function App() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportLimit, setExportLimit] = useState(10); // 10 | 20 | 30 | 50 | -1 (all)
   const [isExporting, setIsExporting] = useState(false);
+  const [hideNames, setHideNames] = useState(false);
+  const [hideAvatars, setHideAvatars] = useState(false);
+  const [hideOverview, setHideOverview] = useState(false);
   const exportAreaRef = useRef(null);
 
   // Web Worker Reference
@@ -1024,7 +1027,7 @@ function App() {
     pageIds.every(id => selectedGroups.has(id));
 
   return (
-    <div className="relative min-h-screen grid-bg pb-4 text-[#1D1B20] flex flex-col">
+    <div className="relative min-h-screen grid-bg text-[#1D1B20] flex flex-col">
 
       {/* M3 Controls Top-Right Bar */}
       <div className="absolute top-4 right-4 flex items-center gap-4 z-20">
@@ -1047,7 +1050,7 @@ function App() {
         </div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 pt-8 pb-4 sm:px-6 lg:px-8 flex flex-col flex-grow w-full">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 pt-8 pb-0 sm:px-6 lg:px-8 flex flex-col flex-grow w-full">
 
         {/* ==================== SCREEN 1: LANDING ==================== */}
         {screen === 'landing' && (
@@ -1059,7 +1062,11 @@ function App() {
             </div>
 
             <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight mb-4 text-[#1D1B20]">
-              {lang === 'vi' ? <>Phân tích tin nhắn <span className="text-[#0B57D0]">Messenger</span></> : <>{t.title}</>}
+              {lang === 'vi' ? (
+                <>Phân tích tin nhắn <span className="text-[#0B57D0]">Messenger</span></>
+              ) : (
+                <><span className="text-[#0B57D0]">Messenger</span> Insights & Counter</>
+              )}
             </h1>
 
             <p className="text-lg text-[#49454F] max-w-2xl mb-12 leading-relaxed">
@@ -1696,7 +1703,7 @@ function App() {
                                 </div>
                               </div>
                             </div>
-                            <div className="flex items-center justify-center w-7 h-7 rounded-full bg-white border border-[#CAC4D0] text-xs text-[#1D1B20] font-bold shrink-0">
+                            <div className="flex items-center justify-center w-9 h-9 rounded-full bg-white border border-[#CAC4D0] text-sm text-[#1D1B20] font-extrabold shrink-0 shadow-sm">
                               #{index + 1}
                             </div>
                           </div>
@@ -1773,7 +1780,7 @@ function App() {
         )}
 
         {/* Footer */}
-        <footer className="mt-auto pt-6 pb-2 border-t border-[#CAC4D0] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#625B71]">
+        <footer className="mt-auto py-6 border-t border-[#CAC4D0] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#625B71]">
           <div className="flex items-center gap-1.5 font-medium">
             <span>© {new Date().getFullYear()} {t.title}</span>
             <span>•</span>
@@ -2167,11 +2174,10 @@ function App() {
                     <button
                       key={opt}
                       onClick={() => setExportLimit(opt)}
-                      className={`py-2 px-3 text-xs font-bold rounded-full border transition-all cursor-pointer text-center ${
-                        exportLimit === opt
-                          ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm'
-                          : 'bg-white text-[#49454F] border-[#CAC4D0] hover:bg-[#F0F4F9]'
-                      }`}
+                      className={`py-2 px-3 text-xs font-bold rounded-full border transition-all cursor-pointer text-center ${exportLimit === opt
+                        ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm'
+                        : 'bg-white text-[#49454F] border-[#CAC4D0] hover:bg-[#F0F4F9]'
+                        }`}
                     >
                       {opt === -1 ? t.exportAllOption : t.exportTopOption(opt)}
                     </button>
@@ -2191,6 +2197,40 @@ function App() {
                     <li>{lang === 'vi' ? 'Số lượng xuất:' : 'Export limit:'} <span className="font-bold text-[#1D1B20]">{exportLimit === -1 ? `${filteredAndSortedGroups.length} (Tất cả)` : `${Math.min(exportLimit, filteredAndSortedGroups.length)} / ${filteredAndSortedGroups.length}`}</span></li>
                   </ul>
                 </div>
+              </div>
+
+              {/* Display Options Checkboxes */}
+              <div className="space-y-3 bg-[#F0F4F9] border border-[#CAC4D0] rounded-2xl p-4">
+                <span className="block text-xs font-bold text-[#49454F] uppercase tracking-wider mb-2">
+                  {lang === 'vi' ? 'Tùy chọn hiển thị' : 'Display Options'}
+                </span>
+                <label className="flex items-center gap-2.5 text-xs text-[#1D1B20] font-semibold cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hideNames}
+                    onChange={(e) => setHideNames(e.target.checked)}
+                    className="w-4 h-4 rounded text-[#0B57D0] focus:ring-[#0B57D0]"
+                  />
+                  <span>{lang === 'vi' ? 'Ẩn tên liên hệ (Ẩn danh)' : 'Hide contact names (Anonymous)'}</span>
+                </label>
+                <label className="flex items-center gap-2.5 text-xs text-[#1D1B20] font-semibold cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hideAvatars}
+                    onChange={(e) => setHideAvatars(e.target.checked)}
+                    className="w-4 h-4 rounded text-[#0B57D0] focus:ring-[#0B57D0]"
+                  />
+                  <span>{lang === 'vi' ? 'Ẩn ảnh đại diện' : 'Hide profile pictures'}</span>
+                </label>
+                <label className="flex items-center gap-2.5 text-xs text-[#1D1B20] font-semibold cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hideOverview}
+                    onChange={(e) => setHideOverview(e.target.checked)}
+                    className="w-4 h-4 rounded text-[#0B57D0] focus:ring-[#0B57D0]"
+                  />
+                  <span>{lang === 'vi' ? 'Ẩn phần Tổng quan (Overview)' : 'Hide Overview summary'}</span>
+                </label>
               </div>
 
               {/* Action Buttons */}
@@ -2235,127 +2275,244 @@ function App() {
       )}
 
       {/* ==================== OFF-SCREEN EXPORT TEMPLATE ==================== */}
-      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-        <div
-          ref={exportAreaRef}
-          className="w-[1000px] bg-[#F8FAFC] text-[#1D1B20] p-12 flex flex-col gap-8"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-        >
-          {/* Logo & Header */}
-          <div className="flex items-center justify-between border-b-2 border-[#CAC4D0] pb-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3.5 rounded-3xl bg-[#D3E3FD] text-[#0B57D0]">
-                <Award className="w-10 h-10" />
-              </div>
+      {globalStats && (
+        <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+          <div
+            ref={exportAreaRef}
+            className="w-[1200px] bg-[#F8FAFC] grid-bg p-8 flex flex-col gap-6 text-[#1D1B20]"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            {/* Dashboard Header */}
+            <div className="flex flex-row items-center justify-between gap-4 mb-2 border-b border-[#CAC4D0] pb-6">
               <div>
-                <h1 className="text-3xl font-black tracking-tight text-[#1D1B20]">
-                  Messenger Insights & Counter
+                <h1 className="text-3xl font-extrabold text-[#1D1B20] flex items-center gap-3">
+                  <BarChart2 className="w-8 h-8 text-[#0B57D0]" />
+                  <span>{t.reportTitle}</span>
                 </h1>
-                <p className="text-sm text-[#49454F] font-semibold mt-1">
-                  {lang === 'vi' ? 'Báo cáo Bảng xếp hạng Tương tác Facebook' : 'Facebook Messenger Contact Leaderboard Report'}
+                <p className="text-sm text-[#49454F] mt-1">
+                  {t.activeRange} <span className="text-[#0B57D0] font-bold">{formatDateRange(globalStats?.dateRange)}</span>
                 </p>
               </div>
-            </div>
-            <div className="text-right text-xs text-[#625B71] font-semibold">
-              <div>{t.exportDateRangeLabel}:</div>
-              <div className="text-[#1D1B20] font-bold mt-1">
-                {globalStats && `${new Date(globalStats.dateRange?.start).toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US')} - ${new Date(globalStats.dateRange?.end).toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US')}`}
+
+              <div className="flex items-center gap-3">
+                {/* Stats Mode Toggle Visual */}
+                <div className="flex items-center gap-1 bg-[#E9EEF6] p-1 rounded-full border border-[#CAC4D0] shadow-sm">
+                  <span className={`px-4 py-2 rounded-full text-xs font-bold ${statsMode === 'personal' ? 'bg-[#0B57D0] text-white shadow-sm' : 'text-[#49454F]'}`}>
+                    {lang === 'vi' ? 'Cá nhân' : 'Personal'}
+                  </span>
+                  <span className={`px-4 py-2 rounded-full text-xs font-bold ${statsMode === 'general' ? 'bg-[#0B57D0] text-white shadow-sm' : 'text-[#49454F]'}`}>
+                    {lang === 'vi' ? 'Chung' : 'General'}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Settings Metadata Summary */}
-          <div className="grid grid-cols-3 gap-4 bg-[#E9EEF6] border border-[#CAC4D0] rounded-3xl p-5 text-sm">
-            <div>
-              <span className="text-[#625B71] block font-semibold text-xs uppercase tracking-wider mb-1">{t.exportFilterLabel}</span>
-              <span className="font-bold text-[#1D1B20] text-base">{filterType === 'all' ? t.filterAll : getTranslatedChatType(filterType)}</span>
-            </div>
-            <div>
-              <span className="text-[#625B71] block font-semibold text-xs uppercase tracking-wider mb-1">{t.exportSortLabel}</span>
-              <span className="font-bold text-[#1D1B20] text-base">
-                {sortBy === 'messages' ? t.sortMessages : sortBy === 'reactions' ? t.sortReactions : sortBy === 'media' ? t.sortMedia : sortBy === 'words' ? t.sortWords : t.sortChars}
-              </span>
-            </div>
-            <div>
-              <span className="text-[#625B71] block font-semibold text-xs uppercase tracking-wider mb-1">{lang === 'vi' ? 'Quy mô xuất' : 'Export scope'}</span>
-              <span className="font-bold text-[#0B57D0] text-base">
-                {exportLimit === -1 ? `Top ${filteredAndSortedGroups.length}` : `Top ${Math.min(exportLimit, filteredAndSortedGroups.length)}`}
-              </span>
-            </div>
-          </div>
+            {/* Stat Cards Grid (Overview Summary) - rendered unless hideOverview is checked */}
+            {!hideOverview && (
+              <div className="grid grid-cols-5 gap-6 mb-2">
+                <div className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] relative overflow-hidden">
+                  <div className="absolute top-4 right-4 text-[#0B57D0]/10">
+                    <MessageSquare className="w-12 h-12" />
+                  </div>
+                  <span className="text-xs text-[#49454F] font-bold uppercase tracking-wider">{t.cardTotalMsg}</span>
+                  <div className="text-3xl font-black text-[#0B57D0] mt-2 font-mono">
+                    {(statsMode === 'personal' ? globalStats?.personal?.totalMessages : globalStats?.totalMessages).toLocaleString()}
+                  </div>
+                  <div className="text-xs text-[#625B71] mt-1">{lang === 'vi' ? 'Xử lý an toàn' : 'Processed securely'}</div>
+                </div>
 
-          {/* Grid list of contacts */}
-          <div className="grid grid-cols-2 gap-6">
-            {filteredAndSortedGroups
-              .slice(0, exportLimit === -1 ? undefined : exportLimit)
-              .map((group, index) => {
-                const totalMedia = Object.values(group.mediaCounts).reduce((acc, val) => acc + val, 0);
-                const badgeColor = index === 0 ? 'bg-[#FFD700]/20 text-[#B8860B] border-[#FFD700]' :
-                                   index === 1 ? 'bg-[#C0C0C0]/20 text-[#708090] border-[#C0C0C0]' :
-                                   index === 2 ? 'bg-[#CD7F32]/20 text-[#8B4513] border-[#CD7F32]' :
-                                   'bg-[#E9EEF6] text-[#49454F] border-[#CAC4D0]';
+                <div className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] relative overflow-hidden">
+                  <div className="absolute top-4 right-4 text-[#0B57D0]/10">
+                    <Sparkles className="w-12 h-12" />
+                  </div>
+                  <span className="text-xs text-[#49454F] font-bold uppercase tracking-wider">{t.cardTotalReactions}</span>
+                  <div className="text-3xl font-black text-[#1D1B20] mt-2 font-mono">
+                    {((statsMode === 'personal' ? globalStats?.personal?.totalReactions : globalStats?.totalReactions) || 0).toLocaleString()}
+                  </div>
+                  <div className="text-xs text-[#625B71] mt-1">{lang === 'vi' ? 'Lượt bày tỏ cảm xúc' : 'Total reactions'}</div>
+                </div>
 
-                return (
-                  <div
-                    key={group.id}
-                    className="p-5 rounded-[24px] bg-[#F0F4F9] border border-[#CAC4D0] flex flex-col justify-between relative overflow-hidden"
-                  >
-                    <div>
-                      {/* Avatar, name, rank */}
-                      <div className="flex items-center justify-between gap-3 mb-4">
-                        <div className="flex items-center gap-3 min-w-0">
-                          {renderAvatar(group.title, "w-10 h-10", "text-xs")}
-                          <div className="min-w-0">
-                            <h4 className="font-black text-[#1D1B20] truncate text-sm">{group.title}</h4>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#D3E3FD] text-[#041E49] border border-[#CAC4D0] mt-1 inline-block">
-                              {getTranslatedChatType(group.type)}
-                            </span>
+                <div className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] relative overflow-hidden">
+                  <div className="absolute top-4 right-4 text-[#0B57D0]/10">
+                    <Users className="w-12 h-12" />
+                  </div>
+                  <span className="text-xs text-[#49454F] font-bold uppercase tracking-wider">{t.cardTotalContacts}</span>
+                  <div className="text-3xl font-black text-[#1D1B20] mt-2 font-mono">
+                    {analyzedGroups.length.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-[#625B71] mt-1">{lang === 'vi' ? 'Đã gộp các tệp E2EE' : 'E2EE folders merged'}</div>
+                </div>
+
+                <div className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] relative overflow-hidden">
+                  <div className="absolute top-4 right-4 text-[#0B57D0]/10">
+                    <Image className="w-12 h-12" />
+                  </div>
+                  <span className="text-xs text-[#49454F] font-bold uppercase tracking-wider">{t.cardTotalMedia}</span>
+                  <div className="text-3xl font-black text-[#1D1B20] mt-2 font-mono">
+                    {(statsMode === 'personal' ? globalStats?.personal?.totalMedia : globalStats?.totalMedia).toLocaleString()}
+                  </div>
+                  <div className="text-xs text-[#625B71] mt-1">{lang === 'vi' ? 'Ảnh, video, thoại, tệp' : 'Photos, videos, audio, files'}</div>
+                </div>
+
+                <div className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] relative overflow-hidden">
+                  <div className="absolute top-4 right-4 text-[#0B57D0]/10">
+                    <FileText className="w-12 h-12" />
+                  </div>
+                  <span className="text-xs text-[#49454F] font-bold uppercase tracking-wider">{t.cardTotalWords}</span>
+                  <div className="text-3xl font-black text-[#1D1B20] mt-2 font-mono">
+                    {(statsMode === 'personal' ? globalStats?.personal?.totalWords : globalStats?.totalWords).toLocaleString()}
+                  </div>
+                  <div className="text-xs text-[#625B71] mt-1">
+                    {lang === 'vi' ? `Ký tự: ${(statsMode === 'personal' ? globalStats?.personal?.totalCharacters : globalStats?.totalCharacters).toLocaleString()}` : `Chars: ${(statsMode === 'personal' ? globalStats?.personal?.totalCharacters : globalStats?.totalCharacters).toLocaleString()}`}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Grid of Contacts */}
+            <div className="grid grid-cols-3 gap-6">
+              {filteredAndSortedGroups
+                .slice(0, exportLimit === -1 ? undefined : exportLimit)
+                .map((group, index) => {
+                  const currentGroupStats = group;
+                  const totalMedia = Object.values(currentGroupStats.mediaCounts).reduce((acc, val) => acc + val, 0);
+
+                  const isDm = group.participants && group.participants.length === 2;
+                  let ratioLabel1 = '';
+                  let ratioPercent1 = 50;
+
+                  if (isDm) {
+                    const myName = (globalStats && globalStats.myName) || 'Bạn';
+                    const otherParticipant = group.participants.find(p => p !== myName);
+                    const senderNames = Object.keys(group.senderCounts);
+                    const mySenderName = senderNames.find(n => n === myName) || myName;
+                    const friendName = senderNames.find(n => n !== mySenderName) || otherParticipant || 'Liên hệ';
+                    const myCount = group.senderCounts[mySenderName] || 0;
+
+                    ratioPercent1 = group.messageCount > 0 ? Math.round((myCount / group.messageCount) * 100) : 50;
+                    ratioLabel1 = `${t.you}: ${ratioPercent1}% / ${t.recipient}: ${100 - ratioPercent1}%`;
+                  }
+
+                  const displayName = hideNames
+                    ? (lang === 'vi' ? `Liên hệ #${index + 1}` : `Contact #${index + 1}`)
+                    : group.title;
+
+                  return (
+                    <div
+                      key={group.id}
+                      className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] flex flex-col justify-between"
+                    >
+                      <div>
+                        {/* Title + rank */}
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {hideAvatars ? (
+                              <div className="w-11 h-11 rounded-full bg-[#E9EEF6] border border-[#CAC4D0] flex items-center justify-center text-[#49454F] shrink-0 font-bold">
+                                <User className="w-5 h-5 text-[#625B71]" />
+                              </div>
+                            ) : (
+                              renderAvatar(group.title, "w-11 h-11", "text-sm")
+                            )}
+                            <div className="min-w-0">
+                              {avatarMap[group.title]?.url && !hideNames ? (
+                                <span className="font-extrabold text-[#0B57D0] truncate text-base block">
+                                  {displayName}
+                                </span>
+                              ) : (
+                                <h4 className="font-extrabold text-[#1D1B20] truncate text-base">{displayName}</h4>
+                              )}
+                              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-[#D3E3FD] text-[#041E49] border border-[#CAC4D0]">
+                                  {getTranslatedChatType(group.type)}
+                                </span>
+                                {getE2EELabel(group) && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E9EEF6] text-[#0B57D0] border border-[#CAC4D0] font-bold">
+                                    E2EE
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-white border border-[#CAC4D0] text-sm text-[#1D1B20] font-extrabold shrink-0 shadow-sm">
+                            #{index + 1}
                           </div>
                         </div>
-                        <div className={`flex items-center justify-center w-7 h-7 rounded-full border text-xs font-black ${badgeColor}`}>
-                          #{index + 1}
+
+                        {/* Stats rows */}
+                        <div className="space-y-3 my-5 text-sm text-[#49454F]">
+                          <div className="flex justify-between">
+                            <span>{t.sortMessages}:</span>
+                            <span className="font-bold text-[#1D1B20] font-mono">{currentGroupStats.messageCount.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>{t.cardTotalReactions}:</span>
+                            <span className="font-bold text-[#1D1B20] font-mono">{(currentGroupStats.reactionCount || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Media:</span>
+                            <span className="font-bold text-[#1D1B20] font-mono">{totalMedia.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>{lang === 'vi' ? 'Từ vựng:' : 'Words:'}</span>
+                            <span className="font-bold text-[#1D1B20] font-mono">{currentGroupStats.totalWords.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between border-t border-[#CAC4D0] pt-2.5 mt-2.5">
+                            <span>{t.firstMsgLabel}</span>
+                            <span className="font-bold text-[#1D1B20] font-mono">{formatFirstMessageDate(group.dateRange?.start)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>{t.lastMsgLabel}</span>
+                            <span className="font-bold text-[#0B57D0] font-mono">{formatLastMessageDaysAgo(group.dateRange?.end)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>{t.durationLabel}</span>
+                            <span className="font-bold text-[#625B71] font-mono">{formatDuration(group.dateRange?.start, group.dateRange?.end)}</span>
+                          </div>
                         </div>
+
+                        {/* Split ratio bar */}
+                        {isDm && ratioLabel1 && (
+                          <div className="my-4">
+                            <div className="flex justify-between text-[11px] text-[#49454F] mb-1.5 font-semibold">
+                              <span>{t.chatRatio}</span>
+                              <span>{ratioLabel1}</span>
+                            </div>
+                            <div className="w-full bg-[#E7E0EC] h-2 rounded-full overflow-hidden">
+                              <div
+                                className="bg-[#0B57D0] h-full"
+                                style={{ width: `${ratioPercent1}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Stats Table */}
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-[#49454F] border-t border-[#CAC4D0]/50 pt-3">
-                        <div className="flex justify-between">
-                          <span>{t.sortMessages}:</span>
-                          <span className="font-bold text-[#1D1B20] font-mono">{group.messageCount.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>{t.cardTotalReactions}:</span>
-                          <span className="font-bold text-[#1D1B20] font-mono">{(group.reactionCount || 0).toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Media:</span>
-                          <span className="font-bold text-[#1D1B20] font-mono">{totalMedia.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>{lang === 'vi' ? 'Từ vựng:' : 'Words:'}</span>
-                          <span className="font-bold text-[#1D1B20] font-mono">{group.totalWords.toLocaleString()}</span>
-                        </div>
-                      </div>
+                      <button
+                        className="w-full mt-4 py-3 rounded-full border border-[#79747E] bg-white text-[#0B57D0] text-xs font-bold flex items-center justify-center gap-1.5"
+                      >
+                        <span>{t.btnDetail}</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
                     </div>
-                  </div>
-                );
-              })}
-          </div>
-
-          {/* Footer Branding */}
-          <div className="flex items-center justify-between border-t-2 border-[#CAC4D0] pt-6 mt-4 text-xs text-[#625B71] font-semibold">
-            <div className="flex items-center gap-2">
-              <span>© {new Date().getFullYear()} {t.title}</span>
-              <span>•</span>
-              <span>{lang === 'vi' ? 'Phát triển bởi Phúc Đặng' : 'Developed by Phuc Dang'}</span>
+                  );
+                })}
             </div>
-            <div>
-              <span>GitHub: github.com/dangphuc2470/messenger-count-e2ee</span>
+
+            {/* Footer Branding */}
+            <div className="flex items-center justify-between border-t border-[#CAC4D0] pt-6 mt-4 text-xs text-[#625B71] font-semibold">
+              <div className="flex items-center gap-2">
+                <span>© {new Date().getFullYear()} {t.title}</span>
+                <span>•</span>
+                <span>{lang === 'vi' ? 'Phát triển bởi Phúc Đặng' : 'Developed by Phuc Dang'}</span>
+              </div>
+              <div>
+                <span>GitHub Source Code: github.com/dangphuc2470/messenger-count-e2ee</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      
+      )}
+
       {/* Details modal closing */}
 
     </div>
