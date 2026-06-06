@@ -1,7 +1,7 @@
 /**
  * Messenger Counter Web Worker
  * Processes Facebook activity JSON logs in a background thread.
- * CAM KẾT: Xử lý 100% ở Client-side, bảo mật tuyệt đối.
+ * Xử lý 100% ở Client-side, bảo mật dữ liệu.
  */
 
 // Global storage for files to avoid re-transferring between main thread and worker

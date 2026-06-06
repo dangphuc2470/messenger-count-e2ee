@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { CHAT_TYPES, PERSONAL_REACTION_PREFIXES, UNKNOWN_SENDER, MEDIA_TYPES } from './constants';
-import { 
-  BarChart2, MessageSquare, Shield, Users, 
-  FolderOpen, Calendar, Image, FileText, ChevronRight, 
+import {
+  BarChart2, MessageSquare, Shield, Users,
+  FolderOpen, Calendar, Image, FileText, ChevronRight,
   Search, ArrowUpDown, X, Loader2, Info, ArrowLeft, RefreshCw,
   Clock, Award, MessageCircle, Sparkles, ChevronDown
 } from 'lucide-react';
@@ -16,12 +16,12 @@ Chart.register(...registerables, zoomPlugin);
 const TRANSLATIONS = {
   vi: {
     langLabel: "Tiếng Việt",
-    badge: "An toàn và bảo mật 100% trên trình duyệt",
+    badge: "An toàn và bảo mật trên trình duyệt",
     title: "Phân tích tin nhắn Messenger",
     subtitle: "Khám phá thống kê chi tiết các cuộc trò chuyện trên Facebook của bạn một cách an toàn. Phục dựng lịch sử tin nhắn và hiển thị bảng xếp hạng trực quan.",
     uploadTitle: "Chọn thư mục dữ liệu Messenger",
     uploadSub: "Nhấp để chọn thư mục your_facebook_activity đã giải nén của bạn.",
-    uploadAvatarHint: "✨ Muốn có ảnh đại diện? Tải trang bạn bè Facebook về (Ctrl+S) và đặt vào cùng thư mục.",
+    uploadAvatarHint: "Muốn có ảnh đại diện? Tải trang bạn bè Facebook về (Ctrl+S) và đặt vào cùng thư mục.",
     secureTitle: "Bảo mật tuyệt đối",
     secureDesc: "Xử lý cục bộ hoàn toàn tại trình duyệt thông qua Web Worker. Không tải tệp tin nào lên máy chủ.",
     mergeTitle: "Gộp tin nhắn E2EE",
@@ -104,17 +104,17 @@ const TRANSLATIONS = {
     deselectAll: "Bỏ chọn tất cả",
     filterTypeLabel: "Bộ lọc loại chat",
     filterAll: "Tất cả hội thoại",
-    footerAuthor: "Phát triển bởi",
+    footerAuthor: "Phát triển bởi ",
     footerSource: "Mã nguồn GitHub"
   },
   en: {
     langLabel: "English",
-    badge: "100% Secure & Client-Side Processing",
+    badge: "Secure & Client-Side Processing",
     title: "Messenger Insights & Counter",
     subtitle: "Discover detailed statistics of your Facebook conversations securely. Reconstruct chat history and display interactive leaderboards.",
     uploadTitle: "Select Messenger data folder",
     uploadSub: "Click to select your extracted your_facebook_activity folder.",
-    uploadAvatarHint: "✨ Want profile avatars? Save your Facebook friends page (Ctrl+S) and place it in the same folder.",
+    uploadAvatarHint: "Want profile avatars? Save your Facebook friends page (Ctrl+S) and place it in the same folder.",
     secureTitle: "Secure by default",
     secureDesc: "Processed entirely in your browser using a Web Worker. No files are uploaded to any server.",
     mergeTitle: "E2EE message merging",
@@ -198,7 +198,7 @@ const TRANSLATIONS = {
     deselectAll: "Clear all",
     filterTypeLabel: "Filter type",
     filterAll: "All conversations",
-    footerAuthor: "Developed by",
+    footerAuthor: "Developed by ",
     footerSource: "GitHub Source Code"
   }
 };
@@ -210,13 +210,13 @@ function App() {
 
   // Navigation & Screen States: 'landing' | 'scanning' | 'merge_review' | 'analyzing' | 'dashboard'
   const [screen, setScreen] = useState('landing');
-  
+
   // Scanning & Parsing States
   const [scanProgress, setScanProgress] = useState({ current: 0, total: 0, fileName: '' });
   const [analyzeProgress, setAnalyzeProgress] = useState({ currentFile: 0, total: 0, fileName: '', processedMessages: 0 });
   const [rawGroups, setRawGroups] = useState([]);
   const [selectedGroups, setSelectedGroups] = useState(new Set());
-  
+
   // Final Analyzed Data
   const [globalStats, setGlobalStats] = useState(null);
   const [analyzedGroups, setAnalyzedGroups] = useState([]);
@@ -237,7 +237,7 @@ function App() {
       .catch(() => ({}))
       .then(data => setAvatarMap(data || {}));
   }, []);
-  
+
   // Dashboard UI States
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'leaderboard'
   const [selectedGroupDetails, setSelectedGroupDetails] = useState(null); // Selected group for Modal
@@ -248,7 +248,7 @@ function App() {
   const [filterType, setFilterType] = useState('all'); // 'all' | 'individual' | 'group' | 'dating'
   const [chatSortOrder, setChatSortOrder] = useState('oldest'); // 'oldest' | 'newest'
   const [statsMode, setStatsMode] = useState('general'); // 'personal' | 'general'
-  
+
   // Web Worker Reference
   const workerRef = useRef(null);
 
@@ -259,17 +259,17 @@ function App() {
     const profileUrl = entry ? entry.url : null;
 
     if (avatarSrc && typeof avatarSrc === 'string' && avatarSrc.startsWith('./')) {
-      avatarSrc = avatarSrc.substring(1); 
+      avatarSrc = avatarSrc.substring(1);
     }
     const initials = title ? title.slice(0, 2).toUpperCase() : '??';
-    
+
     let content;
     if (avatarSrc) {
       content = (
         <div className={`${sizeClass} rounded-full relative shrink-0 overflow-hidden border border-[#CAC4D0] inline-block`}>
-          <img 
-            src={avatarSrc} 
-            alt={title} 
+          <img
+            src={avatarSrc}
+            alt={title}
             className="w-full h-full object-cover"
             onError={(e) => {
               e.target.style.display = 'none';
@@ -290,10 +290,10 @@ function App() {
 
     if (profileUrl) {
       return (
-        <a 
-          href={profileUrl} 
-          target="_blank" 
-          rel="noopener noreferrer" 
+        <a
+          href={profileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
           title={lang === 'vi' ? `Xem trang cá nhân Facebook của ${title}` : `View ${title}'s Facebook profile`}
           className="shrink-0 transition-opacity hover:opacity-85 inline-block"
         >
@@ -311,7 +311,7 @@ function App() {
   const dayOfWeekChartRef = useRef(null);
   const detailHourlyChartRef = useRef(null);
   const detailTimelineChartRef = useRef(null);
-  
+
   // Chat viewport scroll ref
   const chatContainerRef = useRef(null);
 
@@ -456,13 +456,13 @@ function App() {
         }
       });
     }
-    
+
     // Filter JSON files containing messages / dating
     const messageFileRegex = /(messages[\/\\](inbox|e2ee_cutover|archived_threads|message_requests|filtered_threads|extracted)?[\/\\]|dating[\/\\]messages[\/\\]).*\.json$/i;
     const filteredFiles = files.filter(f => messageFileRegex.test(f.webkitRelativePath || f.name));
 
     if (filteredFiles.length === 0) {
-      alert(lang === 'vi' 
+      alert(lang === 'vi'
         ? "Không tìm thấy tệp dữ liệu tin nhắn JSON hợp lệ. Vui lòng chọn đúng thư mục 'your_facebook_activity'."
         : "No valid JSON message files found. Please select your 'your_facebook_activity' folder."
       );
@@ -471,7 +471,7 @@ function App() {
 
     setScreen('scanning');
     setScanProgress({ current: 0, total: filteredFiles.length, fileName: lang === 'vi' ? 'Đang bắt đầu quét...' : 'Starting scan...' });
-    
+
     workerRef.current.postMessage({
       type: 'SCAN_FILES',
       data: { files: filteredFiles }
@@ -481,7 +481,7 @@ function App() {
   // Trigger Deep Analysis
   const handleStartAnalysis = () => {
     if (selectedGroups.size === 0) {
-      alert(lang === 'vi' 
+      alert(lang === 'vi'
         ? "Vui lòng chọn ít nhất một cuộc hội thoại để phân tích."
         : "Please select at least one conversation to analyze."
       );
@@ -533,7 +533,7 @@ function App() {
   const selectAllTypes = () => {
     setSelectedGroups(new Set(rawGroups.map(g => g.id)));
   };
-  
+
   const selectNone = () => {
     setSelectedGroups(new Set());
   };
@@ -555,8 +555,8 @@ function App() {
 
   const isE2EEMerged = (group) => {
     const hasInbox = group.files.some(f => f.filePath.toLowerCase().includes('/inbox/') || f.filePath.toLowerCase().includes('\\inbox\\'));
-    const hasE2EE = group.files.some(f => 
-      f.filePath.toLowerCase().includes('/e2ee_cutover/') || 
+    const hasE2EE = group.files.some(f =>
+      f.filePath.toLowerCase().includes('/e2ee_cutover/') ||
       f.filePath.toLowerCase().includes('\\e2ee_cutover\\') ||
       f.filePath.toLowerCase().includes('/extracted/') ||
       f.filePath.toLowerCase().includes('\\extracted\\') ||
@@ -567,8 +567,8 @@ function App() {
 
   const getE2EELabel = (group) => {
     const hasInbox = group.files.some(f => f.filePath.toLowerCase().includes('/inbox/') || f.filePath.toLowerCase().includes('\\inbox\\'));
-    const hasE2EE = group.files.some(f => 
-      f.filePath.toLowerCase().includes('/e2ee_cutover/') || 
+    const hasE2EE = group.files.some(f =>
+      f.filePath.toLowerCase().includes('/e2ee_cutover/') ||
       f.filePath.toLowerCase().includes('\\e2ee_cutover\\') ||
       f.filePath.toLowerCase().includes('/extracted/') ||
       f.filePath.toLowerCase().includes('\\extracted\\') ||
@@ -622,11 +622,11 @@ function App() {
     if (!start || !end) return 'N/A';
     const diffMs = end - start;
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 30) {
       return lang === 'vi' ? `${diffDays} ngày` : `${diffDays} days`;
     }
-    
+
     const years = Math.floor(diffDays / 365);
     const remainingDaysAfterYears = diffDays % 365;
     const months = Math.floor(remainingDaysAfterYears / 30);
@@ -683,7 +683,7 @@ function App() {
     if (overallTimelineChartRef.current) {
       const sortedMonths = Object.entries(currentGlobal.monthlyCounts)
         .sort((a, b) => a[0].localeCompare(b[0]));
-      
+
       const labels = sortedMonths.map(m => m[0]);
       const data = sortedMonths.map(m => m[1]);
 
@@ -709,7 +709,7 @@ function App() {
             mode: 'index',
             intersect: false
           },
-          plugins: { 
+          plugins: {
             legend: { display: false },
             zoom: {
               zoom: {
@@ -827,7 +827,7 @@ function App() {
     if (detailTimelineChartRef.current) {
       const sortedMonths = Object.entries(currentDetails.monthlyCounts)
         .sort((a, b) => a[0].localeCompare(b[0]));
-      
+
       const labels = sortedMonths.map(m => m[0]);
       const data = sortedMonths.map(m => m[1]);
 
@@ -853,7 +853,7 @@ function App() {
             mode: 'index',
             intersect: false
           },
-          plugins: { 
+          plugins: {
             legend: { display: false },
             zoom: {
               zoom: {
@@ -921,45 +921,43 @@ function App() {
   const isNoneSelected = selectedGroups.size === 0;
 
   const individualIds = rawGroups.filter(g => g.type === CHAT_TYPES.INDIVIDUAL).map(g => g.id);
-  const isOnlyIndividualSelected = individualIds.length > 0 && 
-    selectedGroups.size === individualIds.length && 
+  const isOnlyIndividualSelected = individualIds.length > 0 &&
+    selectedGroups.size === individualIds.length &&
     individualIds.every(id => selectedGroups.has(id));
 
   const groupIds = rawGroups.filter(g => g.type === CHAT_TYPES.GROUP).map(g => g.id);
-  const isOnlyGroupSelected = groupIds.length > 0 && 
-    selectedGroups.size === groupIds.length && 
+  const isOnlyGroupSelected = groupIds.length > 0 &&
+    selectedGroups.size === groupIds.length &&
     groupIds.every(id => selectedGroups.has(id));
 
   const datingIds = rawGroups.filter(g => g.type === CHAT_TYPES.DATING).map(g => g.id);
-  const isOnlyDatingSelected = datingIds.length > 0 && 
-    selectedGroups.size === datingIds.length && 
+  const isOnlyDatingSelected = datingIds.length > 0 &&
+    selectedGroups.size === datingIds.length &&
     datingIds.every(id => selectedGroups.has(id));
 
   const pageIds = rawGroups.filter(g => g.type === CHAT_TYPES.PAGE).map(g => g.id);
-  const isOnlyPageSelected = pageIds.length > 0 && 
-    selectedGroups.size === pageIds.length && 
+  const isOnlyPageSelected = pageIds.length > 0 &&
+    selectedGroups.size === pageIds.length &&
     pageIds.every(id => selectedGroups.has(id));
 
   return (
-    <div className="relative min-h-screen grid-bg pb-4 text-[#1D1B20]">
-      
+    <div className="relative min-h-screen grid-bg pb-12 text-[#1D1B20]">
+
       {/* M3 Controls Top-Right Bar */}
       <div className="absolute top-4 right-4 flex items-center gap-4 z-20">
         {/* Language Switcher */}
         <div className="flex items-center gap-1 bg-[#E9EEF6] p-1 rounded-full border border-[#CAC4D0] shadow-sm">
           <button
             onClick={() => setLang('vi')}
-            className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-              lang === 'vi' ? 'bg-[#0B57D0] text-white shadow' : 'text-[#49454F] hover:text-[#1D1B20]'
-            }`}
+            className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${lang === 'vi' ? 'bg-[#0B57D0] text-white shadow' : 'text-[#49454F] hover:text-[#1D1B20]'
+              }`}
           >
             Tiếng Việt
           </button>
           <button
             onClick={() => setLang('en')}
-            className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-              lang === 'en' ? 'bg-[#0B57D0] text-white shadow' : 'text-[#49454F] hover:text-[#1D1B20]'
-            }`}
+            className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${lang === 'en' ? 'bg-[#0B57D0] text-white shadow' : 'text-[#49454F] hover:text-[#1D1B20]'
+              }`}
           >
             English
           </button>
@@ -967,50 +965,50 @@ function App() {
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        
+
         {/* ==================== SCREEN 1: LANDING ==================== */}
         {screen === 'landing' && (
           <div className="flex flex-col items-center justify-center min-h-[85vh] text-center max-w-4xl mx-auto">
-            
+
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#D3E3FD] text-[#041E49] text-sm font-semibold mb-8">
               <Shield className="w-4 h-4 text-[#0B57D0]" />
               <span>{t.badge}</span>
             </div>
 
             <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight mb-4 text-[#1D1B20]">
-              {lang === 'vi' ? <>Phân tích tin nhắn <span className="text-[#0B57D0]">Messenger</span></> : <><span className="text-[#0B57D0]">Messenger</span> Insights & Counter</>}
+              {lang === 'vi' ? <>Phân tích tin nhắn <span className="text-[#0B57D0]">Messenger</span></> : <>{t.title}</>}
             </h1>
-            
+
             <p className="text-lg text-[#49454F] max-w-2xl mb-12 leading-relaxed">
               {t.subtitle}
             </p>
 
             {/* Folder Select M3 Card */}
             <div className="w-full max-w-xl mb-12">
-              <label 
-                htmlFor="folder-upload" 
+              <label
+                htmlFor="folder-upload"
                 className="flex flex-col items-center justify-center px-8 py-14 rounded-[32px] bg-[#F0F4F9] border border-[#CAC4D0] cursor-pointer group hover:bg-[#E9EEF6] transition-colors"
               >
                 <div className="p-4 rounded-full bg-[#D3E3FD] text-[#041E49] mb-5">
                   <FolderOpen className="w-8 h-8 text-[#0B57D0]" />
                 </div>
-                
+
                 <span className="text-2xl font-bold text-[#1D1B20] mb-2">
                   {t.uploadTitle}
                 </span>
-                
+
                 <span className="text-sm text-[#49454F] text-center max-w-sm">
                   {t.uploadSub}
                 </span>
 
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   id="folder-upload"
-                  webkitdirectory="" 
-                  directory="" 
-                  multiple 
+                  webkitdirectory=""
+                  directory=""
+                  multiple
                   className="hidden"
-                  onChange={handleFolderSelect} 
+                  onChange={handleFolderSelect}
                 />
               </label>
             </div>
@@ -1067,7 +1065,7 @@ function App() {
             </p>
 
             <div className="w-full max-w-md bg-[#E7E0EC] rounded-full h-2 overflow-hidden mb-2">
-              <div 
+              <div
                 className="bg-[#0B57D0] h-full rounded-full transition-all duration-300"
                 style={{ width: `${(scanProgress.current / scanProgress.total) * 100}%` }}
               ></div>
@@ -1084,7 +1082,7 @@ function App() {
           <div className="max-w-4xl mx-auto">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
               <div>
-                <button 
+                <button
                   onClick={handleReset}
                   className="flex items-center gap-1.5 text-[#49454F] hover:text-[#1D1B20] transition-colors text-sm mb-2"
                 >
@@ -1097,7 +1095,7 @@ function App() {
                 </p>
               </div>
 
-              <button 
+              <button
                 onClick={handleStartAnalysis}
                 className="px-6 py-3 rounded-full bg-[#0B57D0] text-white font-bold hover:bg-[#0842A0] transition-colors flex items-center justify-center gap-2 cursor-pointer shadow"
               >
@@ -1107,12 +1105,12 @@ function App() {
             </div>
 
             <div className="bg-[#F0F4F9] rounded-[32px] overflow-hidden border border-[#CAC4D0]">
-              
+
               {/* Checkbox All Bar */}
               <div className="flex items-center justify-between p-5 bg-[#D3E3FD] border-b border-[#CAC4D0] text-sm text-[#041E49]">
                 <label className="flex items-center gap-3 cursor-pointer select-none font-semibold">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     className="w-5 h-5 rounded border-[#79747E] text-[#0B57D0] focus:ring-0 bg-white"
                     checked={selectedGroups.size === rawGroups.length}
                     onChange={(e) => toggleAllGroups(e.target.checked)}
@@ -1127,36 +1125,33 @@ function App() {
               {/* Quick Select Option Chips (Individuals / Groups / Both) */}
               <div className="flex flex-wrap gap-2 p-4 bg-[#E9EEF6] border-b border-[#CAC4D0] items-center">
                 <span className="text-xs text-[#49454F] font-bold uppercase tracking-wider pl-1 mr-1">{t.quickSelect}:</span>
-                
+
                 <button
                   onClick={selectAllTypes}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
-                    isAllSelected 
-                      ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm' 
-                      : 'bg-white text-[#49454F] border-[#CAC4D0] hover:bg-[#F0F4F9]'
-                  }`}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${isAllSelected
+                    ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm'
+                    : 'bg-white text-[#49454F] border-[#CAC4D0] hover:bg-[#F0F4F9]'
+                    }`}
                 >
                   {t.selectAllBoth}
                 </button>
-                
+
                 <button
                   onClick={() => selectOnlyType(CHAT_TYPES.INDIVIDUAL)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
-                    isOnlyIndividualSelected 
-                      ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm' 
-                      : 'bg-white text-[#49454F] border-[#CAC4D0] hover:bg-[#F0F4F9]'
-                  }`}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${isOnlyIndividualSelected
+                    ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm'
+                    : 'bg-white text-[#49454F] border-[#CAC4D0] hover:bg-[#F0F4F9]'
+                    }`}
                 >
                   {t.selectOnlyIndividual}
                 </button>
-                
+
                 <button
                   onClick={() => selectOnlyType(CHAT_TYPES.GROUP)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
-                    isOnlyGroupSelected 
-                      ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm' 
-                      : 'bg-white text-[#49454F] border-[#CAC4D0] hover:bg-[#F0F4F9]'
-                  }`}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${isOnlyGroupSelected
+                    ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm'
+                    : 'bg-white text-[#49454F] border-[#CAC4D0] hover:bg-[#F0F4F9]'
+                    }`}
                 >
                   {t.selectOnlyGroup}
                 </button>
@@ -1164,11 +1159,10 @@ function App() {
                 {rawGroups.some(g => g.type === CHAT_TYPES.DATING) && (
                   <button
                     onClick={() => selectOnlyType(CHAT_TYPES.DATING)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
-                      isOnlyDatingSelected 
-                        ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm' 
-                        : 'bg-white text-[#49454F] border-[#CAC4D0] hover:bg-[#F0F4F9]'
-                    }`}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${isOnlyDatingSelected
+                      ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm'
+                      : 'bg-white text-[#49454F] border-[#CAC4D0] hover:bg-[#F0F4F9]'
+                      }`}
                   >
                     {t.selectOnlyDating}
                   </button>
@@ -1177,23 +1171,21 @@ function App() {
                 {rawGroups.some(g => g.type === CHAT_TYPES.PAGE) && (
                   <button
                     onClick={() => selectOnlyType(CHAT_TYPES.PAGE)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
-                      isOnlyPageSelected 
-                        ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm' 
-                        : 'bg-white text-[#49454F] border-[#CAC4D0] hover:bg-[#F0F4F9]'
-                    }`}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${isOnlyPageSelected
+                      ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm'
+                      : 'bg-white text-[#49454F] border-[#CAC4D0] hover:bg-[#F0F4F9]'
+                      }`}
                   >
                     {t.selectOnlyPage}
                   </button>
                 )}
-                
+
                 <button
                   onClick={selectNone}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
-                    isNoneSelected 
-                      ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm' 
-                      : 'bg-white text-[#49454F] border-[#CAC4D0] hover:bg-[#F0F4F9]'
-                  }`}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${isNoneSelected
+                    ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm'
+                    : 'bg-white text-[#49454F] border-[#CAC4D0] hover:bg-[#F0F4F9]'
+                    }`}
                 >
                   {t.deselectAll}
                 </button>
@@ -1204,26 +1196,26 @@ function App() {
                 {rawGroups.map(group => {
                   const merged = isE2EEMerged(group);
                   return (
-                    <div 
-                      key={group.id} 
+                    <div
+                      key={group.id}
                       className={`flex items-start gap-4 p-5 hover:bg-[#E9EEF6] transition-colors ${selectedGroups.has(group.id) ? 'bg-[#D3E3FD]/20' : ''}`}
                     >
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         className="w-5 h-5 rounded border-[#79747E] text-[#0B57D0] focus:ring-0 bg-white mt-1 cursor-pointer"
                         checked={selectedGroups.has(group.id)}
                         onChange={() => toggleGroupSelection(group.id)}
                       />
-                      
+
                       {renderAvatar(group.title, "w-10 h-10", "text-xs")}
-                      
+
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           {avatarMap[group.title]?.url ? (
-                            <a 
-                              href={avatarMap[group.title].url} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
+                            <a
+                              href={avatarMap[group.title].url}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               className="font-bold text-[#0B57D0] hover:underline truncate max-w-xs sm:max-w-md block"
                             >
                               {group.title}
@@ -1274,14 +1266,14 @@ function App() {
         {screen === 'analyzing' && (
           <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
             <Loader2 className="w-12 h-12 text-[#0B57D0] animate-spin mb-8" />
-            
+
             <h2 className="text-2xl font-bold text-[#1D1B20] mb-2">{t.analyzingTitle}</h2>
             <p className="text-[#49454F] mb-6 text-sm">
               {t.analyzingDesc}
             </p>
 
             <div className="w-full max-w-md bg-[#E7E0EC] rounded-full h-2 overflow-hidden mb-2">
-              <div 
+              <div
                 className="bg-[#0B57D0] h-full rounded-full transition-all duration-300"
                 style={{ width: `${(analyzeProgress.currentFile / analyzeProgress.total) * 100}%` }}
               ></div>
@@ -1306,7 +1298,7 @@ function App() {
         {/* ==================== SCREEN 5: DASHBOARD ==================== */}
         {screen === 'dashboard' && globalStats && (
           <div>
-            
+
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-[#CAC4D0] pb-6">
               <div>
@@ -1324,17 +1316,15 @@ function App() {
                 <div className="flex items-center gap-1 bg-[#E9EEF6] p-1 rounded-full border border-[#CAC4D0] shadow-sm">
                   <button
                     onClick={() => setStatsMode('personal')}
-                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                      statsMode === 'personal' ? 'bg-[#0B57D0] text-white shadow-sm' : 'text-[#49454F] hover:text-[#1D1B20]'
-                    }`}
+                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${statsMode === 'personal' ? 'bg-[#0B57D0] text-white shadow-sm' : 'text-[#49454F] hover:text-[#1D1B20]'
+                      }`}
                   >
                     <span>{lang === 'vi' ? 'Cá nhân' : 'Personal'}</span>
                   </button>
                   <button
                     onClick={() => setStatsMode('general')}
-                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                      statsMode === 'general' ? 'bg-[#0B57D0] text-white shadow-sm' : 'text-[#49454F] hover:text-[#1D1B20]'
-                    }`}
+                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${statsMode === 'general' ? 'bg-[#0B57D0] text-white shadow-sm' : 'text-[#49454F] hover:text-[#1D1B20]'
+                      }`}
                   >
                     <span>{lang === 'vi' ? 'Chung' : 'General'}</span>
                   </button>
@@ -1352,7 +1342,7 @@ function App() {
 
             {/* Stat Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
-              
+
               <div className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] relative overflow-hidden">
                 <div className="absolute top-4 right-4 text-[#0B57D0]/10">
                   <MessageSquare className="w-12 h-12" />
@@ -1414,21 +1404,19 @@ function App() {
             <div className="flex gap-2 mb-8 bg-[#E9EEF6] p-1.5 rounded-full max-w-sm border border-[#CAC4D0]">
               <button
                 onClick={() => setActiveTab('overview')}
-                className={`flex-1 py-2.5 rounded-full text-sm font-bold transition-all cursor-pointer ${
-                  activeTab === 'overview' 
-                    ? 'bg-[#0B57D0] text-white shadow' 
-                    : 'text-[#49454F] hover:text-[#1D1B20] hover:bg-[#F0F4F9]'
-                }`}
+                className={`flex-1 py-2.5 rounded-full text-sm font-bold transition-all cursor-pointer ${activeTab === 'overview'
+                  ? 'bg-[#0B57D0] text-white shadow'
+                  : 'text-[#49454F] hover:text-[#1D1B20] hover:bg-[#F0F4F9]'
+                  }`}
               >
                 {t.tabOverview}
               </button>
               <button
                 onClick={() => setActiveTab('leaderboard')}
-                className={`flex-1 py-2.5 rounded-full text-sm font-bold transition-all cursor-pointer ${
-                  activeTab === 'leaderboard' 
-                    ? 'bg-[#0B57D0] text-white shadow' 
-                    : 'text-[#49454F] hover:text-[#1D1B20] hover:bg-[#F0F4F9]'
-                }`}
+                className={`flex-1 py-2.5 rounded-full text-sm font-bold transition-all cursor-pointer ${activeTab === 'leaderboard'
+                  ? 'bg-[#0B57D0] text-white shadow'
+                  : 'text-[#49454F] hover:text-[#1D1B20] hover:bg-[#F0F4F9]'
+                  }`}
               >
                 {t.tabLeaderboard}
               </button>
@@ -1437,7 +1425,7 @@ function App() {
             {/* TAB CONTENT: OVERVIEW (CHARTS) */}
             {activeTab === 'overview' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
+
                 {/* Timeline Chart */}
                 <div className="lg:col-span-2 p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0]">
                   <h3 className="text-lg font-bold text-[#1D1B20] mb-6 flex items-center gap-2">
@@ -1481,10 +1469,10 @@ function App() {
                     <div key={key} className="p-5 rounded-2xl bg-[#E9EEF6] border border-[#CAC4D0] text-center">
                       <span className="text-xs text-[#49454F] font-bold capitalize">{
                         key === 'photos' ? t.mediaPhotos :
-                        key === 'videos' ? t.mediaVideos :
-                        key === 'gifs' ? t.mediaGifs :
-                        key === 'audio' ? t.mediaAudio :
-                        key === 'stickers' ? t.mediaStickers : t.mediaFiles
+                          key === 'videos' ? t.mediaVideos :
+                            key === 'gifs' ? t.mediaGifs :
+                              key === 'audio' ? t.mediaAudio :
+                                key === 'stickers' ? t.mediaStickers : t.mediaFiles
                       }</span>
                       <div className="text-2xl font-black text-[#0B57D0] font-mono mt-2">{val.toLocaleString()}</div>
                     </div>
@@ -1497,10 +1485,10 @@ function App() {
             {/* TAB CONTENT: LEADERBOARD / RANKINGS */}
             {activeTab === 'leaderboard' && (
               <div className="space-y-6">
-                
+
                 {/* Search & Sort & Filter Controls */}
                 <div className="flex flex-col lg:flex-row gap-4 items-center justify-between bg-[#F0F4F9] p-5 rounded-[28px] border border-[#CAC4D0]">
-                  
+
                   {/* Search Box */}
                   <div className="relative w-full lg:max-w-xs">
                     <Search className="w-4 h-4 text-[#49454F] absolute left-4 top-1/2 -translate-y-1/2" />
@@ -1515,7 +1503,7 @@ function App() {
 
                   {/* Filter & Sort Bar */}
                   <div className="flex flex-col md:flex-row items-center gap-4 w-full lg:w-auto">
-                    
+
                     {/* Chat Type Filter */}
                     <div className="flex items-center gap-2.5 w-full md:w-auto">
                       <Users className="w-4 h-4 text-[#49454F] shrink-0" />
@@ -1563,26 +1551,26 @@ function App() {
                   {filteredAndSortedGroups.map((group, index) => {
                     const currentGroupStats = group;
                     const totalMedia = Object.values(currentGroupStats.mediaCounts).reduce((acc, val) => acc + val, 0);
-                    
+
                     const isDm = group.participants && group.participants.length === 2;
                     let ratioLabel1 = '';
                     let ratioPercent1 = 50;
-                    
+
                     if (isDm) {
                       const myName = (globalStats && globalStats.myName) || 'Bạn';
                       const otherParticipant = group.participants.find(p => p !== myName);
                       const senderNames = Object.keys(group.senderCounts);
                       const mySenderName = senderNames.find(n => n === myName) || myName;
                       const friendName = senderNames.find(n => n !== mySenderName) || otherParticipant || 'Liên hệ';
-                      
+
                       const myCount = group.senderCounts[mySenderName] || 0;
-                      
+
                       ratioPercent1 = group.messageCount > 0 ? Math.round((myCount / group.messageCount) * 100) : 50;
                       ratioLabel1 = `${t.you}: ${ratioPercent1}% / ${t.recipient}: ${100 - ratioPercent1}%`;
                     }
 
                     return (
-                      <div 
+                      <div
                         key={group.id}
                         className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] flex flex-col justify-between"
                       >
@@ -1593,10 +1581,10 @@ function App() {
                               {renderAvatar(group.title, "w-11 h-11", "text-sm")}
                               <div className="min-w-0">
                                 {avatarMap[group.title]?.url ? (
-                                  <a 
-                                    href={avatarMap[group.title].url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer" 
+                                  <a
+                                    href={avatarMap[group.title].url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                     className="font-extrabold text-[#0B57D0] hover:underline truncate text-base block"
                                   >
                                     {group.title}
@@ -1661,7 +1649,7 @@ function App() {
                                 <span>{ratioLabel1}</span>
                               </div>
                               <div className="w-full bg-[#E7E0EC] h-2 rounded-full overflow-hidden">
-                                <div 
+                                <div
                                   className="bg-[#0B57D0] h-full"
                                   style={{ width: `${ratioPercent1}%` }}
                                 ></div>
@@ -1693,16 +1681,16 @@ function App() {
         )}
 
         {/* Footer */}
-        <footer className="mt-8 pt-4 pb-2 border-t border-[#CAC4D0] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#625B71]">
+        <footer className="mt-16 pt-8 border-t border-[#CAC4D0] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#625B71]">
           <div className="flex items-center gap-1.5 font-medium">
             <span>© {new Date().getFullYear()} {t.title}</span>
             <span>•</span>
             <span>{t.footerAuthor} <a href="https://github.com/dangphuc2470" target="_blank" rel="noopener noreferrer" className="font-bold text-[#0B57D0] hover:underline">Phúc Đặng</a></span>
           </div>
           <div className="flex items-center gap-4">
-            <a 
-              href="https://github.com/dangphuc2470/messenger-count-e2ee" 
-              target="_blank" 
+            <a
+              href="https://github.com/dangphuc2470/messenger-count-e2ee"
+              target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 font-bold text-[#0B57D0] hover:underline"
             >
@@ -1718,9 +1706,9 @@ function App() {
       {selectedGroupDetails && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto">
           <div className="relative w-full max-w-4xl rounded-[32px] bg-[#F8FAFC] border border-[#CAC4D0] p-6 sm:p-8 overflow-hidden my-8 shadow-2xl">
-            
+
             {/* Close */}
-            <button 
+            <button
               onClick={() => setSelectedGroupDetails(null)}
               className="absolute top-5 right-5 p-2.5 rounded-full bg-[#E9EEF6] hover:bg-[#E6E1E5] text-[#49454F] hover:text-[#1D1B20] transition-colors cursor-pointer border border-[#CAC4D0]"
             >
@@ -1731,11 +1719,11 @@ function App() {
             <div className="flex items-center gap-4 mb-6 pr-12">
               {renderAvatar(selectedGroupDetails.title, "w-14 h-14", "text-xl")}
               <div className="min-w-0">
-                 {avatarMap[selectedGroupDetails.title]?.url ? (
-                  <a 
-                    href={avatarMap[selectedGroupDetails.title].url} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
+                {avatarMap[selectedGroupDetails.title]?.url ? (
+                  <a
+                    href={avatarMap[selectedGroupDetails.title].url}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="text-2xl font-black text-[#0B57D0] hover:underline truncate block"
                   >
                     {selectedGroupDetails.title}
@@ -1763,21 +1751,19 @@ function App() {
             <div className="flex gap-2 mb-6 bg-[#E9EEF6] p-1 rounded-full max-w-xs border border-[#CAC4D0]">
               <button
                 onClick={() => setModalTab('stats')}
-                className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  modalTab === 'stats' 
-                    ? 'bg-[#0B57D0] text-white shadow' 
-                    : 'text-[#49454F] hover:text-[#1D1B20]'
-                }`}
+                className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${modalTab === 'stats'
+                  ? 'bg-[#0B57D0] text-white shadow'
+                  : 'text-[#49454F] hover:text-[#1D1B20]'
+                  }`}
               >
                 {t.modalReportTab}
               </button>
               <button
                 onClick={() => setModalTab('chat')}
-                className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  modalTab === 'chat' 
-                    ? 'bg-[#0B57D0] text-white shadow' 
-                    : 'text-[#49454F] hover:text-[#1D1B20]'
-                }`}
+                className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${modalTab === 'chat'
+                  ? 'bg-[#0B57D0] text-white shadow'
+                  : 'text-[#49454F] hover:text-[#1D1B20]'
+                  }`}
               >
                 {t.modalChatTab}
               </button>
@@ -1801,8 +1787,8 @@ function App() {
                     <span className="text-xl font-bold text-[#1D1B20] font-mono mt-1 block">
                       {(() => {
                         const target = statsMode === 'personal' ? selectedGroupDetails.personal : selectedGroupDetails;
-                        return target.messageCount > 0 
-                          ? Math.round(target.totalCharacters / target.messageCount) 
+                        return target.messageCount > 0
+                          ? Math.round(target.totalCharacters / target.messageCount)
                           : 0;
                       })()}
                     </span>
@@ -1840,7 +1826,7 @@ function App() {
                       <Clock className="w-4 h-4 text-[#625B71]" />
                       <span>{t.chartTimelineTitle}</span>
                     </h4>
-                     <div className="h-[180px] relative">
+                    <div className="h-[180px] relative">
                       <canvas ref={detailTimelineChartRef}></canvas>
                     </div>
                     <div className="text-[10px] text-[#625B71] mt-2.5 flex items-center gap-1 bg-[#E9EEF6] px-3 py-1 rounded-full border border-[#CAC4D0] w-fit">
@@ -1862,8 +1848,8 @@ function App() {
                         {Object.entries(selectedGroupDetails.senderCounts)
                           .sort((a, b) => b[1] - a[1])
                           .map(([name, count]) => {
-                            const pct = selectedGroupDetails.messageCount > 0 
-                              ? Math.round((count / selectedGroupDetails.messageCount) * 100) 
+                            const pct = selectedGroupDetails.messageCount > 0
+                              ? Math.round((count / selectedGroupDetails.messageCount) * 100)
                               : 0;
                             return (
                               <div key={name} className="text-sm">
@@ -1872,7 +1858,7 @@ function App() {
                                   <span className="font-mono text-xs">{count.toLocaleString()} tin ({pct}%)</span>
                                 </div>
                                 <div className="w-full bg-[#E7E0EC] h-2 rounded-full overflow-hidden">
-                                  <div 
+                                  <div
                                     className="bg-[#0B57D0] h-full"
                                     style={{ width: `${pct}%` }}
                                   ></div>
@@ -1896,7 +1882,7 @@ function App() {
                       <MessageCircle className="w-4 h-4 text-[#625B71]" />
                       <span>{t.topWordsTitle}</span>
                     </h4>
-                    
+
                     {(() => {
                       const targetFreq = statsMode === 'personal' ? selectedGroupDetails.personal.wordFrequencies : selectedGroupDetails.wordFrequencies;
                       return Object.keys(targetFreq).length === 0 ? (
@@ -1906,8 +1892,8 @@ function App() {
                           {Object.entries(targetFreq)
                             .slice(0, 20)
                             .map(([word, freq]) => (
-                              <div 
-                                key={word} 
+                              <div
+                                key={word}
                                 className="px-3 py-1 rounded-full bg-[#E9EEF6] border border-[#CAC4D0] text-[#1D1B20] hover:border-[#0B57D0] transition-colors text-xs flex items-center gap-2"
                               >
                                 <span className="font-bold">{word}</span>
@@ -1925,16 +1911,16 @@ function App() {
             {/* TAB 2: INTERACTIVE CHAT CONVERSATION VIEW */}
             {modalTab === 'chat' && (
               <div className="flex flex-col bg-[#F0F4F9] rounded-3xl border border-[#CAC4D0] overflow-hidden">
-                
+
                 {/* Chat header/stats */}
                 <div className="px-5 py-3.5 bg-[#D3E3FD] border-b border-[#CAC4D0] flex flex-col sm:flex-row justify-between sm:items-center gap-3 text-sm text-[#041E49] font-bold">
-                   <span>
+                  <span>
                     {t.chatHeader}{' '}
                     {avatarMap[selectedGroupDetails.title]?.url ? (
-                      <a 
-                        href={avatarMap[selectedGroupDetails.title].url} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
+                      <a
+                        href={avatarMap[selectedGroupDetails.title].url}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="text-[#0B57D0] hover:underline"
                       >
                         {selectedGroupDetails.title}
@@ -1963,7 +1949,7 @@ function App() {
                 </div>
 
                 {/* Message Log Viewport */}
-                <div 
+                <div
                   ref={chatContainerRef}
                   className="p-5 h-[400px] overflow-y-auto flex flex-col gap-4 bg-white"
                 >
@@ -1994,7 +1980,7 @@ function App() {
                       return slicedMessages.map((msg, index) => {
                         if (msg.isReaction) {
                           return (
-                            <div 
+                            <div
                               key={index}
                               className="self-center my-1 text-[11px] text-[#625B71] bg-[#E9EEF6] px-3.5 py-1.5 rounded-full border border-[#CAC4D0] italic text-center max-w-[90%] font-semibold"
                             >
@@ -2002,11 +1988,11 @@ function App() {
                             </div>
                           );
                         }
-                        
+
                         const isMe = isCurrentUser(msg.sender);
-                        
+
                         return (
-                          <div 
+                          <div
                             key={index}
                             className={`flex flex-col max-w-[75%] ${isMe ? 'self-end items-end' : 'self-start items-start'}`}
                           >
@@ -2024,10 +2010,10 @@ function App() {
                                 <div className="text-xs mt-1.5 px-2.5 py-1 rounded bg-black/10 border border-black/5 font-semibold text-center italic">
                                   {t.mediaAttached} {
                                     msg.mediaType === MEDIA_TYPES.PHOTO ? t.mediaPhotos :
-                                    msg.mediaType === MEDIA_TYPES.VIDEO ? t.mediaVideos :
-                                    msg.mediaType === MEDIA_TYPES.GIF ? t.mediaGifs :
-                                    msg.mediaType === MEDIA_TYPES.AUDIO ? t.mediaAudio :
-                                    msg.mediaType === MEDIA_TYPES.STICKER ? t.mediaStickers : t.mediaFiles
+                                      msg.mediaType === MEDIA_TYPES.VIDEO ? t.mediaVideos :
+                                        msg.mediaType === MEDIA_TYPES.GIF ? t.mediaGifs :
+                                          msg.mediaType === MEDIA_TYPES.AUDIO ? t.mediaAudio :
+                                            msg.mediaType === MEDIA_TYPES.STICKER ? t.mediaStickers : t.mediaFiles
                                   }
                                 </div>
                               )}
