@@ -72,6 +72,15 @@ const PERSONAL_REACTION_PREFIXES = [
 
 const UNKNOWN_SENDER = 'Unknown';
 const DATING_SELF_LABEL = 'Bạn';
+
+const MEDIA_TYPES = {
+  PHOTO: 'photo',
+  VIDEO: 'video',
+  GIF: 'gif',
+  AUDIO: 'audio',
+  FILE: 'file',
+  STICKER: 'sticker',
+};
 // ───────────────────────────────────────────────────────────────────────────
 
 // isCurrentUser: checks against the detected owner name (set after analysis)
@@ -538,7 +547,7 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
             globalStats.personal.mediaCounts.photos += count;
           }
           hasMedia = true;
-          mediaTypeLabel = 'Ảnh';
+          mediaTypeLabel = MEDIA_TYPES.PHOTO;
         }
         if (msg.videos && msg.videos.length > 0) {
           const count = msg.videos.length;
@@ -549,7 +558,7 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
             globalStats.personal.mediaCounts.videos += count;
           }
           hasMedia = true;
-          mediaTypeLabel = 'Video';
+          mediaTypeLabel = MEDIA_TYPES.VIDEO;
         }
         if (msg.gifs && msg.gifs.length > 0) {
           const count = msg.gifs.length;
@@ -560,7 +569,7 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
             globalStats.personal.mediaCounts.gifs += count;
           }
           hasMedia = true;
-          mediaTypeLabel = 'GIF';
+          mediaTypeLabel = MEDIA_TYPES.GIF;
         }
         if (msg.audio_files && msg.audio_files.length > 0) {
           const count = msg.audio_files.length;
@@ -571,7 +580,7 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
             globalStats.personal.mediaCounts.audio += count;
           }
           hasMedia = true;
-          mediaTypeLabel = 'Tin nhắn thoại';
+          mediaTypeLabel = MEDIA_TYPES.AUDIO;
         }
         if (msg.files && msg.files.length > 0) {
           const count = msg.files.length;
@@ -582,7 +591,7 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
             globalStats.personal.mediaCounts.files += count;
           }
           hasMedia = true;
-          mediaTypeLabel = 'Tài liệu';
+          mediaTypeLabel = MEDIA_TYPES.FILE;
         }
         if (msg.sticker) {
           stats.mediaCounts.stickers++;
@@ -592,7 +601,7 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
             globalStats.personal.mediaCounts.stickers++;
           }
           hasMedia = true;
-          mediaTypeLabel = 'Nhãn dán';
+          mediaTypeLabel = MEDIA_TYPES.STICKER;
         }
 
         if (msg.media && msg.media.length > 0) {
@@ -607,7 +616,7 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
               stats.personal.mediaCounts.photos += mediaCount;
               globalStats.personal.mediaCounts.photos += mediaCount;
             }
-            mediaTypeLabel = 'Ảnh';
+            mediaTypeLabel = MEDIA_TYPES.PHOTO;
           } else if (isVideo) {
             stats.mediaCounts.videos += mediaCount;
             globalStats.mediaCounts.videos += mediaCount;
@@ -615,7 +624,7 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
               stats.personal.mediaCounts.videos += mediaCount;
               globalStats.personal.mediaCounts.videos += mediaCount;
             }
-            mediaTypeLabel = 'Video';
+            mediaTypeLabel = MEDIA_TYPES.VIDEO;
           } else {
             stats.mediaCounts.files += mediaCount;
             globalStats.mediaCounts.files += mediaCount;
@@ -623,7 +632,7 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
               stats.personal.mediaCounts.files += mediaCount;
               globalStats.personal.mediaCounts.files += mediaCount;
             }
-            mediaTypeLabel = 'Tài liệu';
+            mediaTypeLabel = MEDIA_TYPES.FILE;
           }
           hasMedia = true;
         }

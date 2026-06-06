@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import avatarMap from './avatar_map.json';
-import { CHAT_TYPES, PERSONAL_REACTION_PREFIXES, UNKNOWN_SENDER } from './constants';
+import { CHAT_TYPES, PERSONAL_REACTION_PREFIXES, UNKNOWN_SENDER, MEDIA_TYPES } from './constants';
 import { 
   BarChart2, MessageSquare, Shield, Users, 
   FolderOpen, Calendar, Image, FileText, ChevronRight, 
@@ -1986,7 +1986,13 @@ function App() {
                               {msg.content}
                               {msg.isMedia && (
                                 <div className="text-xs mt-1.5 px-2.5 py-1 rounded bg-black/10 border border-black/5 font-semibold text-center italic">
-                                  {t.mediaAttached} {msg.mediaType === 'Ảnh' ? t.mediaPhotos : msg.mediaType === 'Video' ? t.mediaVideos : msg.mediaType === 'GIF' ? t.mediaGifs : msg.mediaType === 'Tin nhắn thoại' ? t.mediaAudio : msg.mediaType === 'Nhãn dán' ? t.mediaStickers : t.mediaFiles}
+                                  {t.mediaAttached} {
+                                    msg.mediaType === MEDIA_TYPES.PHOTO ? t.mediaPhotos :
+                                    msg.mediaType === MEDIA_TYPES.VIDEO ? t.mediaVideos :
+                                    msg.mediaType === MEDIA_TYPES.GIF ? t.mediaGifs :
+                                    msg.mediaType === MEDIA_TYPES.AUDIO ? t.mediaAudio :
+                                    msg.mediaType === MEDIA_TYPES.STICKER ? t.mediaStickers : t.mediaFiles
+                                  }
                                 </div>
                               )}
                             </div>

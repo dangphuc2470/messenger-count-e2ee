@@ -47,3 +47,13 @@ export const UNKNOWN_SENDER_DISPLAY = {
 // In Facebook dating exports, the "you" participant is labeled 'Bạn'.
 // We normalize this to a language-agnostic sentinel for internal data use.
 export const DATING_SELF_LABEL = 'Bạn';
+
+// ─── Media Type Constants ──────────────────────────────────────────────────
+export const MEDIA_TYPES = {
+  PHOTO: 'photo',
+  VIDEO: 'video',
+  GIF: 'gif',
+  AUDIO: 'audio',
+  FILE: 'file',
+  STICKER: 'sticker',
+};
