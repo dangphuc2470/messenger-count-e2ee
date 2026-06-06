@@ -103,7 +103,9 @@ const TRANSLATIONS = {
     selectOnlyPage: "Chỉ chọn Trang/Bot",
     deselectAll: "Bỏ chọn tất cả",
     filterTypeLabel: "Bộ lọc loại chat",
-    filterAll: "Tất cả hội thoại"
+    filterAll: "Tất cả hội thoại",
+    footerAuthor: "Phát triển bởi",
+    footerSource: "Mã nguồn GitHub"
   },
   en: {
     langLabel: "English",
@@ -195,7 +197,9 @@ const TRANSLATIONS = {
     selectOnlyPage: "Pages only",
     deselectAll: "Clear all",
     filterTypeLabel: "Filter type",
-    filterAll: "All conversations"
+    filterAll: "All conversations",
+    footerAuthor: "Developed by",
+    footerSource: "GitHub Source Code"
   }
 };
 
@@ -1687,6 +1691,26 @@ function App() {
 
           </div>
         )}
+
+        {/* Footer */}
+        <footer className="mt-16 pt-8 border-t border-[#CAC4D0] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#625B71]">
+          <div className="flex items-center gap-1.5 font-medium">
+            <span>© {new Date().getFullYear()} {t.title}</span>
+            <span>•</span>
+            <span>{t.footerAuthor} <a href="https://github.com/dangphuc2470" target="_blank" rel="noopener noreferrer" className="font-bold text-[#0B57D0] hover:underline">Phúc Đặng</a></span>
+          </div>
+          <div className="flex items-center gap-4">
+            <a 
+              href="https://github.com/dangphuc2470/messenger-count-e2ee" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 font-bold text-[#0B57D0] hover:underline"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>{t.footerSource}</span>
+            </a>
+          </div>
+        </footer>
 
       </div>
 
