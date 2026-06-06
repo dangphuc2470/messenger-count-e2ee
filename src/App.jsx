@@ -205,7 +205,7 @@ const TRANSLATIONS = {
 
 function App() {
   // Localization State
-  const [lang, setLang] = useState('vi');
+  const [lang, setLang] = useState('en');
   const t = TRANSLATIONS[lang];
 
   // Navigation & Screen States: 'landing' | 'scanning' | 'merge_review' | 'analyzing' | 'dashboard'
@@ -458,7 +458,7 @@ function App() {
     }
     
     // Filter JSON files containing messages / dating
-    const messageFileRegex = /(messages[\/\\](inbox|e2ee_cutover|archived_threads|message_requests|filtered_threads|extracted)[\/\\]|dating[\/\\]messages[\/\\]).*\.json$/i;
+    const messageFileRegex = /(messages[\/\\](inbox|e2ee_cutover|archived_threads|message_requests|filtered_threads|extracted)?[\/\\]|dating[\/\\]messages[\/\\]).*\.json$/i;
     const filteredFiles = files.filter(f => messageFileRegex.test(f.webkitRelativePath || f.name));
 
     if (filteredFiles.length === 0) {
@@ -941,7 +941,7 @@ function App() {
     pageIds.every(id => selectedGroups.has(id));
 
   return (
-    <div className="relative min-h-screen grid-bg pb-12 text-[#1D1B20]">
+    <div className="relative min-h-screen grid-bg pb-4 text-[#1D1B20]">
       
       {/* M3 Controls Top-Right Bar */}
       <div className="absolute top-4 right-4 flex items-center gap-4 z-20">
@@ -978,7 +978,7 @@ function App() {
             </div>
 
             <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight mb-4 text-[#1D1B20]">
-              {lang === 'vi' ? <>Phân tích tin nhắn <span className="text-[#0B57D0]">Messenger</span></> : <>{t.title}</>}
+              {lang === 'vi' ? <>Phân tích tin nhắn <span className="text-[#0B57D0]">Messenger</span></> : <><span className="text-[#0B57D0]">Messenger</span> Insights & Counter</>}
             </h1>
             
             <p className="text-lg text-[#49454F] max-w-2xl mb-12 leading-relaxed">
@@ -1693,7 +1693,7 @@ function App() {
         )}
 
         {/* Footer */}
-        <footer className="mt-16 pt-8 border-t border-[#CAC4D0] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#625B71]">
+        <footer className="mt-8 pt-4 pb-2 border-t border-[#CAC4D0] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#625B71]">
           <div className="flex items-center gap-1.5 font-medium">
             <span>© {new Date().getFullYear()} {t.title}</span>
             <span>•</span>
