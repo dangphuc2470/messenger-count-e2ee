@@ -25,6 +25,6 @@ dist-ssr
 
 # Personal Facebook data files - never commit these
 public/*_files/
-src/avatar_map.json
+public/avatar_map.json
 *.html
 !index.html

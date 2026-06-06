@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import avatarMap from './avatar_map.json';
 import { CHAT_TYPES, PERSONAL_REACTION_PREFIXES, UNKNOWN_SENDER, MEDIA_TYPES } from './constants';
 import { 
   BarChart2, MessageSquare, Shield, Users, 
@@ -221,6 +220,19 @@ function App() {
   // Dynamic Avatar Map (parsed from Facebook friends HTML at runtime)
   const [dynamicAvatarMap, setDynamicAvatarMap] = useState({}); // name -> { img: blobUrl|null, url: string|null }
   const blobUrlsRef = useRef([]); // Track blob URLs for cleanup
+
+  // Static Avatar Map State (fetched at runtime from public/avatar_map.json)
+  const [avatarMap, setAvatarMap] = useState({});
+
+  useEffect(() => {
+    fetch('/avatar_map.json')
+      .then(res => {
+        if (res.ok) return res.json();
+        return {};
+      })
+      .catch(() => ({}))
+      .then(data => setAvatarMap(data || {}));
+  }, []);
   
   // Dashboard UI States
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'leaderboard'
