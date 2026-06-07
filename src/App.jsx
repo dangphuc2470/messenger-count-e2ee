@@ -13,6 +13,61 @@ import html2canvas from 'html2canvas-pro';
 // Register Chart.js components
 Chart.register(...registerables, zoomPlugin);
 
+// IndexedDB cache utilities for analysis results
+const DB_NAME = 'MessengerInsightsCache';
+const STORE_NAME = 'cached_results';
+const DB_VERSION = 1;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+function getCache(key) {
+  return openDB().then(db => {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.get(key);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  });
+}
+
+function setCache(key, value) {
+  return openDB().then(db => {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.put(value, key);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  });
+}
+
+function deleteCache(key) {
+  return openDB().then(db => {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.delete(key);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  });
+}
+
 // Bilingual translation dictionary
 const TRANSLATIONS = {
   vi: {
@@ -117,7 +172,11 @@ const TRANSLATIONS = {
     exportFilterLabel: "Bộ lọc",
     exportSortLabel: "Sắp xếp theo",
     exportDateRangeLabel: "Thời gian hoạt động",
-    exportBtnDownloadJson: "Tải file JSON"
+    exportBtnDownloadJson: "Tải file JSON",
+    cacheOptionSave: "Lưu cache kết quả",
+    cacheOptionClear: "Xóa cache kết quả",
+    cacheSaveSuccess: "Đã lưu kết quả phân tích vào bộ nhớ trình duyệt thành công!",
+    cacheClearConfirm: "Bạn có chắc chắn muốn xóa dữ liệu đã lưu?"
   },
   en: {
     langLabel: "English",
@@ -222,7 +281,11 @@ const TRANSLATIONS = {
     exportFilterLabel: "Filter",
     exportSortLabel: "Sorted by",
     exportDateRangeLabel: "Active date range",
-    exportBtnDownloadJson: "Download JSON"
+    exportBtnDownloadJson: "Download JSON",
+    cacheOptionSave: "Cache results",
+    cacheOptionClear: "Clear cache",
+    cacheSaveSuccess: "Analysis results saved to browser successfully!",
+    cacheClearConfirm: "Are you sure you want to clear the cached results?"
   }
 };
 
@@ -230,6 +293,13 @@ function App() {
   // Localization State
   const [lang, setLang] = useState('en');
   const t = TRANSLATIONS[lang];
+
+  // Cache States
+  const [hasCachedData, setHasCachedData] = useState(false);
+  const [cachedMeta, setCachedMeta] = useState(null);
+  const [showCacheMenu, setShowCacheMenu] = useState(false);
+  const [isSavingCache, setIsSavingCache] = useState(false);
+  const cacheMenuRef = useRef(null);
 
   // Navigation & Screen States: 'landing' | 'scanning' | 'merge_review' | 'analyzing' | 'dashboard'
   const [screen, setScreen] = useState('landing');
@@ -347,6 +417,35 @@ function App() {
   // Chat viewport scroll ref
   const chatContainerRef = useRef(null);
 
+  // Check if cache exists on load
+  useEffect(() => {
+    getCache('messenger_cache')
+      .then(cache => {
+        if (cache && cache.globalStats && cache.analyzedGroups) {
+          setHasCachedData(true);
+          setCachedMeta({
+            timestamp: cache.timestamp,
+            dateRange: cache.globalStats.dateRange,
+            totalMessages: cache.globalStats.totalMessages
+          });
+        }
+      })
+      .catch(err => console.error('Error reading cache:', err));
+  }, []);
+
+  // Handle click outside for cache dropdown menu
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (cacheMenuRef.current && !cacheMenuRef.current.contains(event.target)) {
+        setShowCacheMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const handleExportImage = async () => {
     if (!exportAreaRef.current) return;
     setIsExporting(true);
@@ -399,6 +498,61 @@ function App() {
     link.href = dataStr;
     link.click();
     setShowExportModal(false);
+  };
+
+  const handleLoadCache = async () => {
+    try {
+      const cache = await getCache('messenger_cache');
+      if (cache && cache.globalStats && cache.analyzedGroups) {
+        setGlobalStats(cache.globalStats);
+        setAnalyzedGroups(cache.analyzedGroups);
+        setScreen('dashboard');
+      }
+    } catch (err) {
+      console.error('Failed to load cache:', err);
+      alert(lang === 'vi' ? 'Lỗi khi tải cache. Vui lòng thử lại!' : 'Failed to load cache. Please try again.');
+    }
+  };
+
+  const handleClearCache = async () => {
+    if (window.confirm(lang === 'vi' ? t.cacheClearConfirm : 'Are you sure you want to clear the cached results?')) {
+      try {
+        await deleteCache('messenger_cache');
+        setHasCachedData(false);
+        setCachedMeta(null);
+        setShowCacheMenu(false);
+      } catch (err) {
+        console.error('Failed to clear cache:', err);
+      }
+    }
+  };
+
+  const handleSaveCache = async () => {
+    if (!globalStats || !analyzedGroups) return;
+    try {
+      setIsSavingCache(true);
+      await setCache('messenger_cache', {
+        globalStats,
+        analyzedGroups,
+        timestamp: Date.now()
+      });
+      setHasCachedData(true);
+      setCachedMeta({
+        timestamp: Date.now(),
+        dateRange: globalStats.dateRange,
+        totalMessages: globalStats.totalMessages
+      });
+      setShowCacheMenu(false);
+      alert(lang === 'vi' 
+        ? t.cacheSaveSuccess 
+        : 'Analysis results successfully saved to browser cache!'
+      );
+    } catch (err) {
+      console.error('Failed to save cache:', err);
+      alert(lang === 'vi' ? 'Lỗi khi lưu cache. Vui lòng thử lại!' : 'Failed to save cache. Please try again.');
+    } finally {
+      setIsSavingCache(false);
+    }
   };
 
   // Initialize Web Worker
@@ -1054,7 +1208,7 @@ function App() {
 
         {/* ==================== SCREEN 1: LANDING ==================== */}
         {screen === 'landing' && (
-          <div className="flex flex-col items-center justify-center min-h-[85vh] text-center max-w-4xl mx-auto">
+          <div className="flex flex-col items-center justify-center flex-grow text-center max-w-4xl mx-auto py-12 w-full">
 
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#D3E3FD] text-[#041E49] text-sm font-semibold mb-8">
               <Shield className="w-4 h-4 text-[#0B57D0]" />
@@ -1072,6 +1226,39 @@ function App() {
             <p className="text-lg text-[#49454F] max-w-2xl mb-12 leading-relaxed">
               {t.subtitle}
             </p>
+
+            {/* Cached Data Detected Banner */}
+            {hasCachedData && cachedMeta && (
+              <div className="w-full max-w-xl mb-8 p-5 rounded-3xl bg-[#E9EEF6] border border-[#CAC4D0] text-left flex items-start gap-4 shadow-sm">
+                <div className="p-3 rounded-full bg-[#D3E3FD] text-[#041E49] shrink-0 mt-1">
+                  <Award className="w-6 h-6 text-[#0B57D0]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-[#1D1B20] text-base mb-1">
+                    {lang === 'vi' ? 'Phát hiện kết quả phân tích đã lưu gần đây' : 'Recent analysis cache detected'}
+                  </h4>
+                  <p className="text-xs text-[#49454F] leading-relaxed mb-3">
+                    {lang === 'vi' 
+                      ? `Đã lưu ngày: ${new Date(cachedMeta.timestamp).toLocaleString('vi-VN')} | Khoảng thời gian: ${formatDateRange(cachedMeta.dateRange)} | Tổng số tin: ${cachedMeta.totalMessages.toLocaleString()}`
+                      : `Saved on: ${new Date(cachedMeta.timestamp).toLocaleString()} | Range: ${formatDateRange(cachedMeta.dateRange)} | Total: ${cachedMeta.totalMessages.toLocaleString()}`}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleLoadCache}
+                      className="px-4.5 py-2 rounded-full bg-[#0B57D0] hover:bg-[#0842A0] text-white text-xs font-bold transition-all cursor-pointer shadow-sm"
+                    >
+                      {lang === 'vi' ? 'Tải lại kết quả này' : 'Load cached results'}
+                    </button>
+                    <button
+                      onClick={handleClearCache}
+                      className="px-4.5 py-2 rounded-full border border-[#79747E] bg-white hover:bg-[#F0F4F9] text-[#49454F] text-xs font-bold transition-all cursor-pointer"
+                    >
+                      {lang === 'vi' ? 'Xóa cache' : 'Clear cache'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Folder Select M3 Card */}
             <div className="w-full max-w-xl mb-12">
@@ -1420,13 +1607,47 @@ function App() {
                   </button>
                 </div>
 
-                <button
-                  onClick={handleReset}
-                  className="px-5 py-3 rounded-full bg-[#D3E3FD] hover:bg-[#C2D9FC] text-[#041E49] font-bold transition-colors flex items-center gap-2 border border-[#CAC4D0] cursor-pointer"
+                {/* Reset & Cache Split Dropdown Button */}
+                <div 
+                  ref={cacheMenuRef}
+                  className="relative inline-flex items-center bg-[#D3E3FD] rounded-full border border-[#CAC4D0] overflow-visible shadow-sm"
                 >
-                  <RefreshCw className="w-4 h-4 text-[#0B57D0]" />
-                  <span>{t.btnReset}</span>
-                </button>
+                  <button
+                    onClick={handleReset}
+                    className="pl-5 pr-3 py-3 rounded-l-full hover:bg-[#C2D9FC] text-[#041E49] font-bold transition-colors flex items-center gap-2 border-r border-[#CAC4D0] cursor-pointer"
+                    title={t.btnReset}
+                  >
+                    <RefreshCw className="w-4 h-4 text-[#0B57D0]" />
+                    <span>{t.btnReset}</span>
+                  </button>
+                  <button
+                    onClick={() => setShowCacheMenu(!showCacheMenu)}
+                    className="px-3 py-3 rounded-r-full hover:bg-[#C2D9FC] text-[#041E49] transition-colors flex items-center justify-center cursor-pointer"
+                  >
+                    <ChevronDown className="w-4 h-4 text-[#0B57D0]" />
+                  </button>
+
+                  {/* Cache Options Dropdown Menu */}
+                  {showCacheMenu && (
+                    <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl bg-white border border-[#CAC4D0] shadow-lg py-2.5 z-30 font-sans text-xs">
+                      <button
+                        onClick={handleSaveCache}
+                        disabled={isSavingCache}
+                        className="w-full text-left px-4 py-2.5 hover:bg-[#F0F4F9] text-[#1D1B20] transition-colors flex items-center gap-2 font-bold cursor-pointer disabled:opacity-50"
+                      >
+                        <Award className="w-4 h-4 text-[#0B57D0]" />
+                        <span>{t.cacheOptionSave}</span>
+                      </button>
+                      <button
+                        onClick={handleClearCache}
+                        className="w-full text-left px-4 py-2.5 hover:bg-[#F0F4F9] text-[#B3261E] hover:text-[#B3261E] transition-colors flex items-center gap-2 font-bold cursor-pointer"
+                      >
+                        <X className="w-4 h-4 text-[#B3261E]" />
+                        <span>{t.cacheOptionClear}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
