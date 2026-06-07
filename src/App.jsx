@@ -1666,7 +1666,7 @@ function App() {
             <span>{lang === 'vi' ? 'Phát triển bởi Phúc Đặng' : 'Developed by Phuc Dang'}</span>
           </div>
           <div>
-            <span>GitHub Source Code: github.com/dangphuc2470/messenger-count-e2ee</span>
+            <span>GitHub Source Code: github.com/dangphuc2470/messenger-e2ee-count</span>
           </div>
         </div>
       </>
@@ -2715,7 +2715,7 @@ function App() {
           </div>
           <div className="flex items-center gap-4">
             <a
-              href="https://github.com/dangphuc2470/messenger-count-e2ee"
+              href="https://github.com/dangphuc2470/messenger-e2ee-count"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 font-bold text-[#0B57D0] hover:underline"
