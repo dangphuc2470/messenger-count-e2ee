@@ -176,7 +176,8 @@ const TRANSLATIONS = {
     cacheOptionSave: "Lưu cache kết quả",
     cacheOptionClear: "Xóa cache kết quả",
     cacheSaveSuccess: "Đã lưu kết quả phân tích vào bộ nhớ trình duyệt thành công!",
-    cacheClearConfirm: "Bạn có chắc chắn muốn xóa dữ liệu đã lưu?"
+    cacheClearConfirm: "Bạn có chắc chắn muốn xóa dữ liệu đã lưu?",
+    btnShowMore: (count) => `Hiển thị thêm (${count.toLocaleString()} liên hệ còn lại)`
   },
   en: {
     langLabel: "English",
@@ -285,7 +286,8 @@ const TRANSLATIONS = {
     cacheOptionSave: "Cache results",
     cacheOptionClear: "Clear cache",
     cacheSaveSuccess: "Analysis results saved to browser successfully!",
-    cacheClearConfirm: "Are you sure you want to clear the cached results?"
+    cacheClearConfirm: "Are you sure you want to clear the cached results?",
+    btnShowMore: (count) => `Show more (${count.toLocaleString()} remaining)`
   }
 };
 
@@ -1402,7 +1404,7 @@ function App() {
                     {/* Title + rank */}
                     <div className="flex items-start justify-between gap-3 mb-4">
                       <div className="flex items-center gap-3 min-w-0">
-                        {hideAvatars ? (
+                        {hideAvatars && !revealedNames.has(group.title) ? (
                           <div className="w-11 h-11 rounded-full bg-[#E9EEF6] border border-[#CAC4D0] flex items-center justify-center text-[#49454F] shrink-0 font-bold">
                             <User className="w-5 h-5 text-[#625B71]" />
                           </div>
@@ -2133,10 +2135,10 @@ function App() {
               <div className="space-y-6">
 
                 {/* Search & Sort & Filter Controls */}
-                <div className="flex flex-col lg:flex-row gap-4 items-center justify-between bg-[#F0F4F9] p-5 rounded-[28px] border border-[#CAC4D0]">
+                <div className="flex flex-col xl:flex-row gap-4 items-center justify-between bg-[#F0F4F9] p-5 rounded-[28px] border border-[#CAC4D0]">
 
                   {/* Search Box */}
-                  <div className="relative w-full lg:max-w-xs">
+                  <div className="relative w-full xl:max-w-xs">
                     <Search className="w-4 h-4 text-[#49454F] absolute left-4 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
@@ -2148,7 +2150,7 @@ function App() {
                   </div>
 
                   {/* Filter & Sort Bar */}
-                  <div className="flex flex-col md:flex-row items-center gap-4 w-full lg:w-auto">
+                  <div className="flex flex-wrap items-center gap-4 w-full xl:w-auto justify-start xl:justify-end">
 
                     {/* Chat Type Filter */}
                     <div className="flex items-center gap-2.5 w-full md:w-auto">
@@ -2188,24 +2190,6 @@ function App() {
                       </select>
                     </div>
 
-                    {/* Display Limit Selector */}
-                    <div className="flex items-center gap-2.5 w-full md:w-auto">
-                      <Award className="w-4 h-4 text-[#49454F] shrink-0" />
-                      <span className="text-xs text-[#49454F] uppercase tracking-wider font-bold whitespace-nowrap">
-                        {lang === 'vi' ? 'Hiển thị:' : 'Show limit:'}
-                      </span>
-                      <select
-                        value={displayLimit}
-                        onChange={(e) => setDisplayLimit(Number(e.target.value))}
-                        className="w-full md:w-auto bg-white border border-[#79747E] text-[#1D1B20] rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-[#0B57D0] cursor-pointer font-bold shadow-sm"
-                      >
-                        <option value={9}>Top 9</option>
-                        <option value={20}>Top 20</option>
-                        <option value={50}>Top 50</option>
-                        <option value={100}>Top 100</option>
-                        <option value={-1}>{lang === 'vi' ? 'Tất cả' : 'Show all'}</option>
-                      </select>
-                    </div>
 
                     {/* Export Image Button */}
                     <button
@@ -2350,6 +2334,52 @@ function App() {
                   })}
                 </div>
 
+                {/* Bottom Pagination & Limit Controls */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 bg-[#F0F4F9] p-5 rounded-[28px] border border-[#CAC4D0]">
+                  {/* Left: Show more button (if there are more to show) */}
+                  <div>
+                    {displayLimit !== -1 && displayLimit < filteredAndSortedGroups.length ? (
+                      <button
+                        onClick={() => {
+                          setDisplayLimit(prev => {
+                            if (prev === 9) return 20;
+                            if (prev === 20) return 50;
+                            if (prev === 50) return 100;
+                            return -1; // Show all
+                          });
+                        }}
+                        className="px-6 py-2.5 rounded-full bg-[#0B57D0] hover:bg-[#0842A0] text-white text-xs font-bold transition-all shadow cursor-pointer flex items-center gap-1.5"
+                      >
+                        <ChevronDown className="w-4 h-4" />
+                        <span>{t.btnShowMore(filteredAndSortedGroups.length - displayLimit)}</span>
+                      </button>
+                    ) : (
+                      <span className="text-xs text-[#625B71] font-semibold italic">
+                        {lang === 'vi' ? 'Đã hiển thị tất cả liên hệ' : 'All contacts displayed'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Right: Display Limit Selector */}
+                  <div className="flex items-center gap-2.5">
+                    <Award className="w-4 h-4 text-[#49454F] shrink-0" />
+                    <span className="text-xs text-[#49454F] uppercase tracking-wider font-bold whitespace-nowrap">
+                      {lang === 'vi' ? 'Giới hạn hiển thị:' : 'Display limit:'}
+                    </span>
+                    <select
+                      value={displayLimit}
+                      onChange={(e) => setDisplayLimit(Number(e.target.value))}
+                      className="bg-white border border-[#79747E] text-[#1D1B20] rounded-full px-4 py-2 text-xs focus:outline-none focus:border-[#0B57D0] cursor-pointer font-bold shadow-sm"
+                    >
+                      <option value={9}>Top 9</option>
+                      <option value={20}>Top 20</option>
+                      <option value={50}>Top 50</option>
+                      <option value={100}>Top 100</option>
+                      <option value={-1}>{lang === 'vi' ? 'Tất cả' : 'Show all'}</option>
+                    </select>
+                  </div>
+                </div>
+
               </div>
             )}
 
@@ -2357,7 +2387,7 @@ function App() {
         )}
 
         {/* Footer */}
-        <footer className="mt-12 py-6 border-t border-[#CAC4D0] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#625B71]">
+        <footer className="mt-auto py-6 border-t border-[#CAC4D0] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#625B71]">
           <div className="flex items-center gap-1.5 font-medium">
             <span>© {new Date().getFullYear()} {t.title}</span>
             <span>•</span>
@@ -2727,7 +2757,7 @@ function App() {
       {/* ==================== SCREEN 7: EXPORT IMAGE MODAL ==================== */}
       {showExportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto">
-          <div className="relative w-full max-w-5xl rounded-[32px] bg-[#F8FAFC] border border-[#CAC4D0] p-6 sm:p-8 overflow-hidden shadow-2xl my-8">
+          <div className="relative w-full max-w-5xl rounded-[32px] bg-[#F8FAFC] border border-[#CAC4D0] p-6 sm:p-8 overflow-y-auto max-h-[90vh] shadow-2xl my-8">
             {/* Close */}
             <button
               onClick={() => setShowExportModal(false)}
@@ -2790,7 +2820,7 @@ function App() {
                       checked={hideNames}
                       onChange={(e) => {
                         setHideNames(e.target.checked);
-                        if (!e.target.checked) {
+                        if (!e.target.checked && !hideAvatars) {
                           setRevealedNames(new Set());
                         }
                       }}
@@ -2799,11 +2829,21 @@ function App() {
                     <span>{lang === 'vi' ? 'Ẩn tên liên hệ (Ẩn danh)' : 'Hide contact names (Anonymous)'}</span>
                   </label>
 
-                  {/* Tick list dropdown for revealing specific people if anonymous all is selected */}
-                  {hideNames && (
-                    <div className="space-y-2 relative" ref={revealDropdownRef}>
+                  <label className="flex items-center gap-2.5 text-xs text-[#1D1B20] font-semibold cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={hideAvatars}
+                      onChange={(e) => setHideAvatars(e.target.checked)}
+                      className="w-4 h-4 rounded text-[#0B57D0] focus:ring-[#0B57D0] cursor-pointer"
+                    />
+                    <span>{lang === 'vi' ? 'Ẩn ảnh đại diện' : 'Hide profile pictures'}</span>
+                  </label>
+                  
+                  {/* Tick list dropdown for revealing specific people if anonymous all is selected OR avatars are hidden */}
+                  {(hideNames || hideAvatars) && (
+                    <div className="space-y-2 relative pt-2 border-t border-[#CAC4D0]" ref={revealDropdownRef}>
                       <label className="block text-[11px] font-bold text-[#625B71] uppercase tracking-wider pl-1">
-                        {lang === 'vi' ? 'Giữ lại tên thật của liên hệ cụ thể:' : 'Keep real name for specific contacts:'}
+                        {lang === 'vi' ? 'Giữ lại tên thật & ảnh của liên hệ cụ thể:' : 'Keep real name & avatar for specific contacts:'}
                       </label>
                       <div className="relative">
                         <button
@@ -2854,16 +2894,6 @@ function App() {
                     </div>
                   )}
 
-                  <label className="flex items-center gap-2.5 text-xs text-[#1D1B20] font-semibold cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={hideAvatars}
-                      onChange={(e) => setHideAvatars(e.target.checked)}
-                      className="w-4 h-4 rounded text-[#0B57D0] focus:ring-[#0B57D0] cursor-pointer"
-                    />
-                    <span>{lang === 'vi' ? 'Ẩn ảnh đại diện' : 'Hide profile pictures'}</span>
-                  </label>
-                  
                   <label className="flex items-center gap-2.5 text-xs text-[#1D1B20] font-semibold cursor-pointer">
                     <input
                       type="checkbox"
