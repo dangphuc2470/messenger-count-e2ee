@@ -349,6 +349,7 @@ function App() {
   const [hideNames, setHideNames] = useState(false);
   const [hideAvatars, setHideAvatars] = useState(false);
   const [hideOverview, setHideOverview] = useState(false);
+  const [displayLimit, setDisplayLimit] = useState(9);
   const exportAreaRef = useRef(null);
 
   // Web Worker Reference
@@ -506,6 +507,32 @@ function App() {
       if (cache && cache.globalStats && cache.analyzedGroups) {
         setGlobalStats(cache.globalStats);
         setAnalyzedGroups(cache.analyzedGroups);
+
+        // Restore dynamic avatars by recreating browser Blob URLs
+        if (cache.dynamicAvatarMap) {
+          const restoredMap = {};
+          const newBlobUrls = [];
+
+          for (const [name, entry] of Object.entries(cache.dynamicAvatarMap)) {
+            let newImgUrl = null;
+            if (entry.rawBlob) {
+              newImgUrl = URL.createObjectURL(entry.rawBlob);
+              newBlobUrls.push(newImgUrl);
+            } else if (entry.img && !entry.img.startsWith('blob:')) {
+              newImgUrl = entry.img;
+            }
+            restoredMap[name] = {
+              img: newImgUrl,
+              url: entry.url,
+              rawBlob: entry.rawBlob
+            };
+          }
+
+          blobUrlsRef.current.forEach(u => URL.revokeObjectURL(u));
+          blobUrlsRef.current = newBlobUrls;
+          setDynamicAvatarMap(restoredMap);
+        }
+
         setScreen('dashboard');
       }
     } catch (err) {
@@ -534,6 +561,7 @@ function App() {
       await setCache('messenger_cache', {
         globalStats,
         analyzedGroups,
+        dynamicAvatarMap,
         timestamp: Date.now()
       });
       setHasCachedData(true);
@@ -657,13 +685,16 @@ function App() {
       for (const [profileId, info] of Object.entries(profileMap)) {
         if (!info.name) continue;
         let blobUrl = null;
+        let rawFile = null;
         if (info.img && imageFileMap[info.img]) {
-          blobUrl = URL.createObjectURL(imageFileMap[info.img]);
+          rawFile = imageFileMap[info.img];
+          blobUrl = URL.createObjectURL(rawFile);
           newBlobUrls.push(blobUrl);
         }
         result[info.name] = {
           img: blobUrl,
-          url: `https://www.facebook.com/${profileId}`
+          url: `https://www.facebook.com/${profileId}`,
+          rawBlob: rawFile
         };
       }
 
@@ -1574,14 +1605,20 @@ function App() {
 
         {/* ==================== SCREEN 5: DASHBOARD ==================== */}
         {screen === 'dashboard' && globalStats && (
-          <div>
+          <div className="flex-grow w-full pb-12">
 
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-[#CAC4D0] pb-6">
               <div>
                 <h1 className="text-3xl font-extrabold text-[#1D1B20] flex items-center gap-3">
                   <BarChart2 className="w-8 h-8 text-[#0B57D0]" />
-                  <span>{t.reportTitle}</span>
+                  <span>
+                    {lang === 'vi' ? (
+                      <>Báo cáo thống kê <span className="text-[#0B57D0]">Messenger</span></>
+                    ) : (
+                      <><span className="text-[#0B57D0]">Messenger</span> Insights Report</>
+                    )}
+                  </span>
                 </h1>
                 <p className="text-sm text-[#49454F] mt-1">
                   {t.activeRange} <span className="text-[#0B57D0] font-bold">{formatDateRange(globalStats.dateRange)}</span>
@@ -1853,6 +1890,25 @@ function App() {
                       </select>
                     </div>
 
+                    {/* Display Limit Selector */}
+                    <div className="flex items-center gap-2.5 w-full md:w-auto">
+                      <Award className="w-4 h-4 text-[#49454F] shrink-0" />
+                      <span className="text-xs text-[#49454F] uppercase tracking-wider font-bold whitespace-nowrap">
+                        {lang === 'vi' ? 'Hiển thị:' : 'Show limit:'}
+                      </span>
+                      <select
+                        value={displayLimit}
+                        onChange={(e) => setDisplayLimit(Number(e.target.value))}
+                        className="w-full md:w-auto bg-white border border-[#79747E] text-[#1D1B20] rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-[#0B57D0] cursor-pointer font-bold shadow-sm"
+                      >
+                        <option value={9}>Top 9</option>
+                        <option value={20}>Top 20</option>
+                        <option value={50}>Top 50</option>
+                        <option value={100}>Top 100</option>
+                        <option value={-1}>{lang === 'vi' ? 'Tất cả' : 'Show all'}</option>
+                      </select>
+                    </div>
+
                     {/* Export Image Button */}
                     <button
                       onClick={() => setShowExportModal(true)}
@@ -1868,7 +1924,9 @@ function App() {
 
                 {/* Contacts Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredAndSortedGroups.map((group, index) => {
+                  {filteredAndSortedGroups
+                    .slice(0, displayLimit === -1 ? undefined : displayLimit)
+                    .map((group, index) => {
                     const currentGroupStats = group;
                     const totalMedia = Object.values(currentGroupStats.mediaCounts).reduce((acc, val) => acc + val, 0);
 
