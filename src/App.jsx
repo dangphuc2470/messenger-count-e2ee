@@ -4,7 +4,8 @@ import {
   BarChart2, MessageSquare, Shield, Users,
   FolderOpen, Calendar, Image, FileText, ChevronRight,
   Search, ArrowUpDown, X, Loader2, Info, ArrowLeft, RefreshCw,
-  Clock, Award, MessageCircle, Sparkles, ChevronDown, Download, User
+  Clock, Award, MessageCircle, Sparkles, ChevronDown, Download, User,
+  LayoutGrid, List
 } from 'lucide-react';
 import { Chart, registerables } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
@@ -352,6 +353,7 @@ function App() {
   const [hideAvatars, setHideAvatars] = useState(false);
   const [hideOverview, setHideOverview] = useState(false);
   const [displayLimit, setDisplayLimit] = useState(9);
+  const [layoutMode, setLayoutMode] = useState('grid'); // 'grid' | 'list'
   const [revealedNames, setRevealedNames] = useState(new Set());
   const [showRevealDropdown, setShowRevealDropdown] = useState(false);
   const revealDropdownRef = useRef(null);
@@ -486,13 +488,48 @@ function App() {
     if (exportPreviewRef.current) {
       setTemplateHeight(exportPreviewRef.current.scrollHeight);
     }
-  }, [showExportModal, exportLimit, hideOverview, hideNames, hideAvatars, revealedNames]);
+  }, [showExportModal, exportLimit, hideOverview, hideNames, hideAvatars, revealedNames, layoutMode]);
 
   const handleOpenExportModal = () => {
     setRevealedNames(new Set());
     setShowRevealDropdown(false);
+    setExportLimit(layoutMode === 'grid' ? 9 : 10);
     setShowExportModal(true);
   };
+
+  // Sync displayLimit & exportLimit when layoutMode changes
+  useEffect(() => {
+    setDisplayLimit(prev => {
+      if (prev === -1) return -1;
+      if (layoutMode === 'grid') {
+        if (prev === 10) return 9;
+        if (prev === 20) return 21;
+        if (prev === 50) return 51;
+        if (prev === 100) return 99;
+      } else {
+        if (prev === 9) return 10;
+        if (prev === 21) return 20;
+        if (prev === 51) return 50;
+        if (prev === 99) return 100;
+      }
+      return prev;
+    });
+    setExportLimit(prev => {
+      if (prev === -1) return -1;
+      if (layoutMode === 'grid') {
+        if (prev === 10) return 9;
+        if (prev === 20) return 21;
+        if (prev === 50) return 51;
+        if (prev === 100) return 99;
+      } else {
+        if (prev === 9) return 10;
+        if (prev === 21) return 20;
+        if (prev === 51) return 50;
+        if (prev === 99) return 100;
+      }
+      return prev;
+    });
+  }, [layoutMode]);
 
   const handleExportImage = async () => {
     if (!exportAreaRef.current) return;
@@ -1365,136 +1402,245 @@ function App() {
           </div>
         )}
 
-        {/* Grid of Contacts */}
-        <div className="grid grid-cols-3 gap-6 font-sans">
-          {filteredAndSortedGroups
-            .slice(0, exportLimit === -1 ? undefined : exportLimit)
-            .map((group, index) => {
-              const currentGroupStats = group;
-              const totalMedia = Object.values(currentGroupStats.mediaCounts).reduce((acc, val) => acc + val, 0);
+        {/* Contacts Grid or List */}
+        {layoutMode === 'list' ? (
+          <div className="flex flex-col gap-4 font-sans">
+            {filteredAndSortedGroups
+              .slice(0, exportLimit === -1 ? undefined : exportLimit)
+              .map((group, index) => {
+                const currentGroupStats = group;
+                const totalMedia = Object.values(currentGroupStats.mediaCounts).reduce((acc, val) => acc + val, 0);
 
-              const isDm = group.participants && group.participants.length === 2;
-              let ratioLabel1 = '';
-              let ratioPercent1 = 50;
+                const isDm = group.participants && group.participants.length === 2;
+                let ratioLabel1 = '';
+                let ratioPercent1 = 50;
 
-              if (isDm) {
-                const myName = (globalStats && globalStats.myName) || 'Bạn';
-                const otherParticipant = group.participants.find(p => p !== myName);
-                const senderNames = Object.keys(group.senderCounts);
-                const mySenderName = senderNames.find(n => n === myName) || myName;
-                const friendName = senderNames.find(n => n !== mySenderName) || otherParticipant || 'Liên hệ';
-                const myCount = group.senderCounts[mySenderName] || 0;
+                if (isDm) {
+                  const myName = (globalStats && globalStats.myName) || 'Bạn';
+                  const otherParticipant = group.participants.find(p => p !== myName);
+                  const senderNames = Object.keys(group.senderCounts);
+                  const mySenderName = senderNames.find(n => n === myName) || myName;
+                  const friendName = senderNames.find(n => n !== mySenderName) || otherParticipant || 'Liên hệ';
+                  const myCount = group.senderCounts[mySenderName] || 0;
 
-                ratioPercent1 = group.messageCount > 0 ? Math.round((myCount / group.messageCount) * 100) : 50;
-                ratioLabel1 = `${t.you}: ${ratioPercent1}% / ${t.recipient}: ${100 - ratioPercent1}%`;
-              }
+                  ratioPercent1 = group.messageCount > 0 ? Math.round((myCount / group.messageCount) * 100) : 50;
+                  ratioLabel1 = `${t.you}: ${ratioPercent1}% / ${t.recipient}: ${100 - ratioPercent1}%`;
+                }
 
-              const displayName = hideNames
-                ? (revealedNames.has(group.title)
-                    ? group.title
-                    : (lang === 'vi' ? `Liên hệ #${index + 1}` : `Contact #${index + 1}`))
-                : group.title;
+                const displayName = hideNames
+                  ? (revealedNames.has(group.title)
+                      ? group.title
+                      : (lang === 'vi' ? `Liên hệ #${index + 1}` : `Contact #${index + 1}`))
+                  : group.title;
 
-              return (
-                <div
-                  key={group.id}
-                  className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] flex flex-col justify-between"
-                >
-                  <div>
-                    {/* Title + rank */}
-                    <div className="flex items-start justify-between gap-3 mb-4">
-                      <div className="flex items-center gap-3 min-w-0">
-                        {hideAvatars && !revealedNames.has(group.title) ? (
-                          <div className="w-11 h-11 rounded-full bg-[#E9EEF6] border border-[#CAC4D0] flex items-center justify-center text-[#49454F] shrink-0 font-bold">
-                            <User className="w-5 h-5 text-[#625B71]" />
-                          </div>
-                        ) : (
-                          renderAvatar(group.title, "w-11 h-11", "text-sm")
-                        )}
-                        <div className="min-w-0">
-                          {avatarMap[group.title]?.url && (!hideNames || revealedNames.has(group.title)) ? (
-                            <span className="font-extrabold text-[#0B57D0] truncate text-base block">
-                              {displayName}
-                            </span>
-                          ) : (
-                            <h4 className="font-extrabold text-[#1D1B20] truncate text-base">{displayName}</h4>
-                          )}
-                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                            <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-[#D3E3FD] text-[#041E49] border border-[#CAC4D0]">
-                              {getTranslatedChatType(group.type)}
-                            </span>
-                            {getE2EELabel(group) && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E9EEF6] text-[#0B57D0] border border-[#CAC4D0] font-bold">
-                                E2EE
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-center w-9 h-9 rounded-full bg-white border border-[#CAC4D0] text-sm text-[#1D1B20] font-extrabold shrink-0 shadow-sm">
+                return (
+                  <div
+                    key={group.id}
+                    className="flex flex-row items-center justify-between gap-4 p-4.5 rounded-[24px] bg-[#F0F4F9] border border-[#CAC4D0] w-full"
+                  >
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                      {/* Rank */}
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white border border-[#CAC4D0] text-xs text-[#1D1B20] font-extrabold shrink-0 shadow-sm">
                         #{index + 1}
                       </div>
-                    </div>
-
-                    {/* Stats rows */}
-                    <div className="space-y-3 my-5 text-sm text-[#49454F]">
-                      <div className="flex justify-between">
-                        <span>{t.sortMessages}:</span>
-                        <span className="font-bold text-[#1D1B20] font-mono">{currentGroupStats.messageCount.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>{t.cardTotalReactions}:</span>
-                        <span className="font-bold text-[#1D1B20] font-mono">{(currentGroupStats.reactionCount || 0).toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Media:</span>
-                        <span className="font-bold text-[#1D1B20] font-mono">{totalMedia.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>{lang === 'vi' ? 'Từ vựng:' : 'Words:'}</span>
-                        <span className="font-bold text-[#1D1B20] font-mono">{currentGroupStats.totalWords.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between border-t border-[#CAC4D0] pt-2.5 mt-2.5">
-                        <span>{t.firstMsgLabel}</span>
-                        <span className="font-bold text-[#1D1B20] font-mono">{formatFirstMessageDate(group.dateRange?.start)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>{t.lastMsgLabel}</span>
-                        <span className="font-bold text-[#0B57D0] font-mono">{formatLastMessageDaysAgo(group.dateRange?.end)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>{t.durationLabel}</span>
-                        <span className="font-bold text-[#625B71] font-mono">{formatDuration(group.dateRange?.start, group.dateRange?.end)}</span>
-                      </div>
-                    </div>
-
-                    {/* Split ratio bar */}
-                    {isDm && ratioLabel1 && (
-                      <div className="my-4">
-                        <div className="flex justify-between text-[11px] text-[#49454F] mb-1.5 font-semibold">
-                          <span>{t.chatRatio}</span>
-                          <span>{ratioLabel1}</span>
+                      {/* Avatar */}
+                      {hideAvatars && !revealedNames.has(group.title) ? (
+                        <div className="w-10 h-10 rounded-full bg-[#E9EEF6] border border-[#CAC4D0] flex items-center justify-center text-[#49454F] shrink-0 font-bold">
+                          <User className="w-5 h-5 text-[#625B71]" />
                         </div>
-                        <div className="w-full bg-[#E7E0EC] h-2 rounded-full overflow-hidden">
-                          <div
-                            className="bg-[#0B57D0] h-full"
-                            style={{ width: `${ratioPercent1}%` }}
+                      ) : (
+                        renderAvatar(group.title, "w-10 h-10", "text-xs")
+                      )}
+                      {/* Name & Type */}
+                      <div className="min-w-0">
+                        {avatarMap[group.title]?.url && (!hideNames || revealedNames.has(group.title)) ? (
+                          <span className="font-extrabold text-[#0B57D0] truncate text-sm block">
+                            {displayName}
+                          </span>
+                        ) : (
+                          <h4 className="font-extrabold text-[#1D1B20] truncate text-sm">{displayName}</h4>
+                        )}
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-[#D3E3FD] text-[#041E49] border border-[#CAC4D0]">
+                            {getTranslatedChatType(group.type)}
+                          </span>
+                          {getE2EELabel(group) && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#E9EEF6] text-[#0B57D0] border border-[#CAC4D0] font-bold">
+                              E2EE
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stats Summary columns */}
+                    <div className="grid grid-cols-4 gap-6 text-xs text-[#49454F] font-semibold min-w-[420px]">
+                      <div>
+                        <span className="block text-[9px] text-[#625B71] uppercase font-bold">{t.sortMessages}</span>
+                        <span className="text-sm font-bold text-[#1D1B20] font-mono">{currentGroupStats.messageCount.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[9px] text-[#625B71] uppercase font-bold">{lang === 'vi' ? 'Cảm xúc' : 'Reactions'}</span>
+                        <span className="text-sm font-bold text-[#1D1B20] font-mono">{(currentGroupStats.reactionCount || 0).toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[9px] text-[#625B71] uppercase font-bold">Media</span>
+                        <span className="text-sm font-bold text-[#1D1B20] font-mono">{totalMedia.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[9px] text-[#625B71] uppercase font-bold">{lang === 'vi' ? 'Từ vựng' : 'Words'}</span>
+                        <span className="text-sm font-bold text-[#1D1B20] font-mono">{currentGroupStats.totalWords.toLocaleString()}</span>
+                      </div>
+                    </div>
+
+                    {/* Split Ratio */}
+                    {isDm && ratioLabel1 && (
+                      <div className="w-24">
+                        <div className="flex justify-between text-[9px] text-[#49454F] mb-0.5 font-semibold">
+                          <span>{ratioPercent1}%</span>
+                          <span>{100 - ratioPercent1}%</span>
+                        </div>
+                        <div className="w-full bg-[#E7E0EC] h-1 rounded-full overflow-hidden">
+                          <div className="bg-[#0B57D0] h-full" style={{ width: `${ratioPercent1}%` }}
                           ></div>
                         </div>
                       </div>
                     )}
                   </div>
+                );
+              })}
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-6 font-sans">
+            {filteredAndSortedGroups
+              .slice(0, exportLimit === -1 ? undefined : exportLimit)
+              .map((group, index) => {
+                const currentGroupStats = group;
+                const totalMedia = Object.values(currentGroupStats.mediaCounts).reduce((acc, val) => acc + val, 0);
 
-                  <button
-                    className="w-full mt-4 py-3 rounded-full border border-[#79747E] bg-white text-[#0B57D0] text-xs font-bold flex items-center justify-center gap-1.5"
+                const isDm = group.participants && group.participants.length === 2;
+                let ratioLabel1 = '';
+                let ratioPercent1 = 50;
+
+                if (isDm) {
+                  const myName = (globalStats && globalStats.myName) || 'Bạn';
+                  const otherParticipant = group.participants.find(p => p !== myName);
+                  const senderNames = Object.keys(group.senderCounts);
+                  const mySenderName = senderNames.find(n => n === myName) || myName;
+                  const friendName = senderNames.find(n => n !== mySenderName) || otherParticipant || 'Liên hệ';
+                  const myCount = group.senderCounts[mySenderName] || 0;
+
+                  ratioPercent1 = group.messageCount > 0 ? Math.round((myCount / group.messageCount) * 100) : 50;
+                  ratioLabel1 = `${t.you}: ${ratioPercent1}% / ${t.recipient}: ${100 - ratioPercent1}%`;
+                }
+
+                const displayName = hideNames
+                  ? (revealedNames.has(group.title)
+                      ? group.title
+                      : (lang === 'vi' ? `Liên hệ #${index + 1}` : `Contact #${index + 1}`))
+                  : group.title;
+
+                return (
+                  <div
+                    key={group.id}
+                    className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] flex flex-col justify-between"
                   >
-                    <span>{t.btnDetail}</span>
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              );
-            })}
-        </div>
+                    <div>
+                      {/* Title + rank */}
+                      <div className="flex items-start justify-between gap-3 mb-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {hideAvatars && !revealedNames.has(group.title) ? (
+                            <div className="w-11 h-11 rounded-full bg-[#E9EEF6] border border-[#CAC4D0] flex items-center justify-center text-[#49454F] shrink-0 font-bold">
+                              <User className="w-5 h-5 text-[#625B71]" />
+                            </div>
+                          ) : (
+                            renderAvatar(group.title, "w-11 h-11", "text-sm")
+                          )}
+                          <div className="min-w-0">
+                            {avatarMap[group.title]?.url && (!hideNames || revealedNames.has(group.title)) ? (
+                              <span className="font-extrabold text-[#0B57D0] truncate text-base block">
+                                {displayName}
+                              </span>
+                            ) : (
+                              <h4 className="font-extrabold text-[#1D1B20] truncate text-base">{displayName}</h4>
+                            )}
+                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                              <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-[#D3E3FD] text-[#041E49] border border-[#CAC4D0]">
+                                {getTranslatedChatType(group.type)}
+                              </span>
+                              {getE2EELabel(group) && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E9EEF6] text-[#0B57D0] border border-[#CAC4D0] font-bold">
+                                  E2EE
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-center w-9 h-9 rounded-full bg-white border border-[#CAC4D0] text-sm text-[#1D1B20] font-extrabold shrink-0 shadow-sm">
+                          #{index + 1}
+                        </div>
+                      </div>
+
+                      {/* Stats rows */}
+                      <div className="space-y-3 my-5 text-sm text-[#49454F]">
+                        <div className="flex justify-between">
+                          <span>{t.sortMessages}:</span>
+                          <span className="font-bold text-[#1D1B20] font-mono">{currentGroupStats.messageCount.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>{t.cardTotalReactions}:</span>
+                          <span className="font-bold text-[#1D1B20] font-mono">{(currentGroupStats.reactionCount || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Media:</span>
+                          <span className="font-bold text-[#1D1B20] font-mono">{totalMedia.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>{lang === 'vi' ? 'Từ vựng:' : 'Words:'}</span>
+                          <span className="font-bold text-[#1D1B20] font-mono">{currentGroupStats.totalWords.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between border-t border-[#CAC4D0] pt-2.5 mt-2.5">
+                          <span>{t.firstMsgLabel}</span>
+                          <span className="font-bold text-[#1D1B20] font-mono">{formatFirstMessageDate(group.dateRange?.start)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>{t.lastMsgLabel}</span>
+                          <span className="font-bold text-[#0B57D0] font-mono">{formatLastMessageDaysAgo(group.dateRange?.end)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>{t.durationLabel}</span>
+                          <span className="font-bold text-[#625B71] font-mono">{formatDuration(group.dateRange?.start, group.dateRange?.end)}</span>
+                        </div>
+                      </div>
+
+                      {/* Split ratio bar */}
+                      {isDm && ratioLabel1 && (
+                        <div className="my-4">
+                          <div className="flex justify-between text-[11px] text-[#49454F] mb-1.5 font-semibold">
+                            <span>{t.chatRatio}</span>
+                            <span>{ratioLabel1}</span>
+                          </div>
+                          <div className="w-full bg-[#E7E0EC] h-2 rounded-full overflow-hidden">
+                            <div
+                              className="bg-[#0B57D0] h-full"
+                              style={{ width: `${ratioPercent1}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      className="w-full mt-4 py-3 rounded-full border border-[#79747E] bg-white text-[#0B57D0] text-xs font-bold flex items-center justify-center gap-1.5"
+                    >
+                      <span>{t.btnDetail}</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })}
+          </div>
+        )}
 
         {/* Footer Branding */}
         <div className="flex items-center justify-between border-t border-[#CAC4D0] pt-6 mt-4 text-xs text-[#625B71] font-semibold">
@@ -2191,6 +2337,34 @@ function App() {
                     </div>
 
 
+                    {/* Layout Mode Selector */}
+                    <div className="flex items-center gap-1 bg-[#E9EEF6] p-1 rounded-full border border-[#CAC4D0] shadow-sm shrink-0 w-full md:w-auto justify-center">
+                      <button
+                        type="button"
+                        onClick={() => setLayoutMode('grid')}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${layoutMode === 'grid'
+                          ? 'bg-[#0B57D0] text-white shadow'
+                          : 'text-[#49454F] hover:text-[#1D1B20]'
+                          }`}
+                        title={lang === 'vi' ? 'Xem dạng lưới' : 'Grid view'}
+                      >
+                        <LayoutGrid className="w-3.5 h-3.5" />
+                        <span>{lang === 'vi' ? 'Lưới' : 'Grid'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLayoutMode('list')}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${layoutMode === 'list'
+                          ? 'bg-[#0B57D0] text-white shadow'
+                          : 'text-[#49454F] hover:text-[#1D1B20]'
+                          }`}
+                        title={lang === 'vi' ? 'Xem dạng danh sách' : 'List view'}
+                      >
+                        <List className="w-3.5 h-3.5" />
+                        <span>{lang === 'vi' ? 'Danh sách' : 'List'}</span>
+                      </button>
+                    </div>
+
                     {/* Export Image Button */}
                     <button
                       onClick={handleOpenExportModal}
@@ -2204,135 +2378,251 @@ function App() {
 
                 </div>
 
-                {/* Contacts Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredAndSortedGroups
-                    .slice(0, displayLimit === -1 ? undefined : displayLimit)
-                    .map((group, index) => {
-                    const currentGroupStats = group;
-                    const totalMedia = Object.values(currentGroupStats.mediaCounts).reduce((acc, val) => acc + val, 0);
+                {/* Contacts Grid or List */}
+                {layoutMode === 'list' ? (
+                  <div className="flex flex-col gap-4">
+                    {filteredAndSortedGroups
+                      .slice(0, displayLimit === -1 ? undefined : displayLimit)
+                      .map((group, index) => {
+                        const currentGroupStats = group;
+                        const totalMedia = Object.values(currentGroupStats.mediaCounts).reduce((acc, val) => acc + val, 0);
 
-                    const isDm = group.participants && group.participants.length === 2;
-                    let ratioLabel1 = '';
-                    let ratioPercent1 = 50;
+                        const isDm = group.participants && group.participants.length === 2;
+                        let ratioLabel1 = '';
+                        let ratioPercent1 = 50;
 
-                    if (isDm) {
-                      const myName = (globalStats && globalStats.myName) || 'Bạn';
-                      const otherParticipant = group.participants.find(p => p !== myName);
-                      const senderNames = Object.keys(group.senderCounts);
-                      const mySenderName = senderNames.find(n => n === myName) || myName;
-                      const friendName = senderNames.find(n => n !== mySenderName) || otherParticipant || 'Liên hệ';
+                        if (isDm) {
+                          const myName = (globalStats && globalStats.myName) || 'Bạn';
+                          const otherParticipant = group.participants.find(p => p !== myName);
+                          const senderNames = Object.keys(group.senderCounts);
+                          const mySenderName = senderNames.find(n => n === myName) || myName;
+                          const friendName = senderNames.find(n => n !== mySenderName) || otherParticipant || 'Liên hệ';
 
-                      const myCount = group.senderCounts[mySenderName] || 0;
+                          const myCount = group.senderCounts[mySenderName] || 0;
 
-                      ratioPercent1 = group.messageCount > 0 ? Math.round((myCount / group.messageCount) * 100) : 50;
-                      ratioLabel1 = `${t.you}: ${ratioPercent1}% / ${t.recipient}: ${100 - ratioPercent1}%`;
-                    }
+                          ratioPercent1 = group.messageCount > 0 ? Math.round((myCount / group.messageCount) * 100) : 50;
+                          ratioLabel1 = `${t.you}: ${ratioPercent1}% / ${t.recipient}: ${100 - ratioPercent1}%`;
+                        }
 
-                    return (
-                      <div
-                        key={group.id}
-                        className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] flex flex-col justify-between"
-                      >
-                        <div>
-                          {/* Title + rank */}
-                          <div className="flex items-start justify-between gap-3 mb-4">
-                            <div className="flex items-center gap-3 min-w-0">
-                              {renderAvatar(group.title, "w-11 h-11", "text-sm")}
+                        const displayName = group.title;
+
+                        return (
+                          <div
+                            key={group.id}
+                            className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl bg-[#F0F4F9] border border-[#CAC4D0] hover:bg-[#E9EEF6] transition-colors"
+                          >
+                            <div className="flex items-center gap-4 min-w-0 flex-1">
+                              {/* Rank */}
+                              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white border border-[#CAC4D0] text-xs text-[#1D1B20] font-extrabold shrink-0 shadow-sm">
+                                #{index + 1}
+                              </div>
+                              {/* Avatar */}
+                              {renderAvatar(group.title, "w-10 h-10", "text-xs")}
+                              {/* Name & Type */}
                               <div className="min-w-0">
                                 {avatarMap[group.title]?.url ? (
                                   <a
                                     href={avatarMap[group.title].url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="font-extrabold text-[#0B57D0] hover:underline truncate text-base block"
+                                    className="font-extrabold text-[#0B57D0] hover:underline truncate text-sm block"
                                   >
-                                    {group.title}
+                                    {displayName}
                                   </a>
                                 ) : (
-                                  <h4 className="font-extrabold text-[#1D1B20] truncate text-base">{group.title}</h4>
+                                  <h4 className="font-extrabold text-[#1D1B20] truncate text-sm">{displayName}</h4>
                                 )}
-                                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                                  <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-[#D3E3FD] text-[#041E49] border border-[#CAC4D0]">
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-[#D3E3FD] text-[#041E49] border border-[#CAC4D0]">
                                     {getTranslatedChatType(group.type)}
                                   </span>
                                   {getE2EELabel(group) && (
-                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E9EEF6] text-[#0B57D0] border border-[#CAC4D0] font-bold">
+                                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#E9EEF6] text-[#0B57D0] border border-[#CAC4D0] font-bold">
                                       E2EE
                                     </span>
                                   )}
                                 </div>
                               </div>
                             </div>
-                            <div className="flex items-center justify-center w-9 h-9 rounded-full bg-white border border-[#CAC4D0] text-sm text-[#1D1B20] font-extrabold shrink-0 shadow-sm">
-                              #{index + 1}
-                            </div>
-                          </div>
 
-                          {/* Stats rows */}
-                          <div className="space-y-3 my-5 text-sm text-[#49454F]">
-                            <div className="flex justify-between">
-                              <span>{t.sortMessages}:</span>
-                              <span className="font-bold text-[#1D1B20] font-mono">{currentGroupStats.messageCount.toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>{t.cardTotalReactions}:</span>
-                              <span className="font-bold text-[#1D1B20] font-mono">{(currentGroupStats.reactionCount || 0).toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Media:</span>
-                              <span className="font-bold text-[#1D1B20] font-mono">{totalMedia.toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>{lang === 'vi' ? 'Từ vựng:' : 'Words:'}</span>
-                              <span className="font-bold text-[#1D1B20] font-mono">{currentGroupStats.totalWords.toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between border-t border-[#CAC4D0] pt-2.5 mt-2.5">
-                              <span>{t.firstMsgLabel}</span>
-                              <span className="font-bold text-[#1D1B20] font-mono">{formatFirstMessageDate(group.dateRange?.start)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>{t.lastMsgLabel}</span>
-                              <span className="font-bold text-[#0B57D0] font-mono">{formatLastMessageDaysAgo(group.dateRange?.end)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>{t.durationLabel}</span>
-                              <span className="font-bold text-[#625B71] font-mono">{formatDuration(group.dateRange?.start, group.dateRange?.end)}</span>
-                            </div>
-                          </div>
-
-                          {/* Split ratio bar */}
-                          {isDm && ratioLabel1 && (
-                            <div className="my-4">
-                              <div className="flex justify-between text-[11px] text-[#49454F] mb-1.5 font-semibold">
-                                <span>{t.chatRatio}</span>
-                                <span>{ratioLabel1}</span>
+                            {/* Stats Summary columns */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs text-[#49454F] font-semibold md:min-w-[400px]">
+                              <div>
+                                <span className="block text-[9px] text-[#625B71] uppercase font-bold">{t.sortMessages}</span>
+                                <span className="text-sm font-bold text-[#1D1B20] font-mono">{currentGroupStats.messageCount.toLocaleString()}</span>
                               </div>
-                              <div className="w-full bg-[#E7E0EC] h-2 rounded-full overflow-hidden">
-                                <div
-                                  className="bg-[#0B57D0] h-full"
-                                  style={{ width: `${ratioPercent1}%` }}
-                                ></div>
+                              <div>
+                                <span className="block text-[9px] text-[#625B71] uppercase font-bold">{lang === 'vi' ? 'Cảm xúc' : 'Reactions'}</span>
+                                <span className="text-sm font-bold text-[#1D1B20] font-mono">{(currentGroupStats.reactionCount || 0).toLocaleString()}</span>
+                              </div>
+                              <div>
+                                <span className="block text-[9px] text-[#625B71] uppercase font-bold">Media</span>
+                                <span className="text-sm font-bold text-[#1D1B20] font-mono">{totalMedia.toLocaleString()}</span>
+                              </div>
+                              <div>
+                                <span className="block text-[9px] text-[#625B71] uppercase font-bold">{lang === 'vi' ? 'Từ vựng' : 'Words'}</span>
+                                <span className="text-sm font-bold text-[#1D1B20] font-mono">{currentGroupStats.totalWords.toLocaleString()}</span>
                               </div>
                             </div>
-                          )}
-                        </div>
 
-                        <button
-                          onClick={() => {
-                            setSelectedGroupDetails(group);
-                            setModalTab('stats');
-                            setVisibleMessageCount(150);
-                          }}
-                          className="w-full mt-4 py-3 rounded-full border border-[#79747E] bg-white hover:bg-[#F0F4F9] text-[#0B57D0] text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            {/* Details button / Ratio */}
+                            <div className="flex items-center gap-3">
+                              {isDm && ratioLabel1 && (
+                                <div className="hidden lg:block w-24">
+                                  <div className="flex justify-between text-[9px] text-[#49454F] mb-0.5 font-semibold">
+                                    <span>{ratioPercent1}%</span>
+                                    <span>{100 - ratioPercent1}%</span>
+                                  </div>
+                                  <div className="w-full bg-[#E7E0EC] h-1 rounded-full overflow-hidden">
+                                    <div className="bg-[#0B57D0] h-full" style={{ width: `${ratioPercent1}%` }}></div>
+                                  </div>
+                                </div>
+                              )}
+                              <button
+                                onClick={() => {
+                                  setSelectedGroupDetails(group);
+                                  setModalTab('stats');
+                                  setVisibleMessageCount(150);
+                                }}
+                                className="p-2 rounded-full border border-[#79747E] bg-white hover:bg-[#F0F4F9] text-[#0B57D0] transition-colors"
+                              >
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredAndSortedGroups
+                      .slice(0, displayLimit === -1 ? undefined : displayLimit)
+                      .map((group, index) => {
+                      const currentGroupStats = group;
+                      const totalMedia = Object.values(currentGroupStats.mediaCounts).reduce((acc, val) => acc + val, 0);
+
+                      const isDm = group.participants && group.participants.length === 2;
+                      let ratioLabel1 = '';
+                      let ratioPercent1 = 50;
+
+                      if (isDm) {
+                        const myName = (globalStats && globalStats.myName) || 'Bạn';
+                        const otherParticipant = group.participants.find(p => p !== myName);
+                        const senderNames = Object.keys(group.senderCounts);
+                        const mySenderName = senderNames.find(n => n === myName) || myName;
+                        const friendName = senderNames.find(n => n !== mySenderName) || otherParticipant || 'Liên hệ';
+
+                        const myCount = group.senderCounts[mySenderName] || 0;
+
+                        ratioPercent1 = group.messageCount > 0 ? Math.round((myCount / group.messageCount) * 100) : 50;
+                        ratioLabel1 = `${t.you}: ${ratioPercent1}% / ${t.recipient}: ${100 - ratioPercent1}%`;
+                      }
+
+                      return (
+                        <div
+                          key={group.id}
+                          className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] flex flex-col justify-between"
                         >
-                          <span>{t.btnDetail}</span>
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+                          <div>
+                            {/* Title + rank */}
+                            <div className="flex items-start justify-between gap-3 mb-4">
+                              <div className="flex items-center gap-3 min-w-0">
+                                {renderAvatar(group.title, "w-11 h-11", "text-sm")}
+                                <div className="min-w-0">
+                                  {avatarMap[group.title]?.url ? (
+                                    <a
+                                      href={avatarMap[group.title].url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="font-extrabold text-[#0B57D0] hover:underline truncate text-base block"
+                                    >
+                                      {group.title}
+                                    </a>
+                                  ) : (
+                                    <h4 className="font-extrabold text-[#1D1B20] truncate text-base">{group.title}</h4>
+                                  )}
+                                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                    <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-[#D3E3FD] text-[#041E49] border border-[#CAC4D0]">
+                                      {getTranslatedChatType(group.type)}
+                                    </span>
+                                    {getE2EELabel(group) && (
+                                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E9EEF6] text-[#0B57D0] border border-[#CAC4D0] font-bold">
+                                        E2EE
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-center w-9 h-9 rounded-full bg-white border border-[#CAC4D0] text-sm text-[#1D1B20] font-extrabold shrink-0 shadow-sm">
+                                #{index + 1}
+                              </div>
+                            </div>
+
+                            {/* Stats rows */}
+                            <div className="space-y-3 my-5 text-sm text-[#49454F]">
+                              <div className="flex justify-between">
+                                <span>{t.sortMessages}:</span>
+                                <span className="font-bold text-[#1D1B20] font-mono">{currentGroupStats.messageCount.toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>{t.cardTotalReactions}:</span>
+                                <span className="font-bold text-[#1D1B20] font-mono">{(currentGroupStats.reactionCount || 0).toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Media:</span>
+                                <span className="font-bold text-[#1D1B20] font-mono">{totalMedia.toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>{lang === 'vi' ? 'Từ vựng:' : 'Words:'}</span>
+                                <span className="font-bold text-[#1D1B20] font-mono">{currentGroupStats.totalWords.toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between border-t border-[#CAC4D0] pt-2.5 mt-2.5">
+                                <span>{t.firstMsgLabel}</span>
+                                <span className="font-bold text-[#1D1B20] font-mono">{formatFirstMessageDate(group.dateRange?.start)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>{t.lastMsgLabel}</span>
+                                <span className="font-bold text-[#0B57D0] font-mono">{formatLastMessageDaysAgo(group.dateRange?.end)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>{t.durationLabel}</span>
+                                <span className="font-bold text-[#625B71] font-mono">{formatDuration(group.dateRange?.start, group.dateRange?.end)}</span>
+                              </div>
+                            </div>
+
+                            {/* Split ratio bar */}
+                            {isDm && ratioLabel1 && (
+                              <div className="my-4">
+                                <div className="flex justify-between text-[11px] text-[#49454F] mb-1.5 font-semibold">
+                                  <span>{t.chatRatio}</span>
+                                  <span>{ratioLabel1}</span>
+                                </div>
+                                <div className="w-full bg-[#E7E0EC] h-2 rounded-full overflow-hidden">
+                                  <div
+                                    className="bg-[#0B57D0] h-full"
+                                    style={{ width: `${ratioPercent1}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              setSelectedGroupDetails(group);
+                              setModalTab('stats');
+                              setVisibleMessageCount(150);
+                            }}
+                            className="w-full mt-4 py-3 rounded-full border border-[#79747E] bg-white hover:bg-[#F0F4F9] text-[#0B57D0] text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <span>{t.btnDetail}</span>
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {/* Bottom Pagination & Limit Controls */}
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 bg-[#F0F4F9] p-5 rounded-[28px] border border-[#CAC4D0]">
@@ -2342,10 +2632,17 @@ function App() {
                       <button
                         onClick={() => {
                           setDisplayLimit(prev => {
-                            if (prev === 9) return 20;
-                            if (prev === 20) return 50;
-                            if (prev === 50) return 100;
-                            return -1; // Show all
+                            if (layoutMode === 'grid') {
+                              if (prev === 9) return 21;
+                              if (prev === 21) return 51;
+                              if (prev === 51) return 99;
+                              return -1;
+                            } else {
+                              if (prev === 10) return 20;
+                              if (prev === 20) return 50;
+                              if (prev === 50) return 100;
+                              return -1;
+                            }
                           });
                         }}
                         className="px-6 py-2.5 rounded-full bg-[#0B57D0] hover:bg-[#0842A0] text-white text-xs font-bold transition-all shadow cursor-pointer flex items-center gap-1.5"
@@ -2371,11 +2668,23 @@ function App() {
                       onChange={(e) => setDisplayLimit(Number(e.target.value))}
                       className="bg-white border border-[#79747E] text-[#1D1B20] rounded-full px-4 py-2 text-xs focus:outline-none focus:border-[#0B57D0] cursor-pointer font-bold shadow-sm"
                     >
-                      <option value={9}>Top 9</option>
-                      <option value={20}>Top 20</option>
-                      <option value={50}>Top 50</option>
-                      <option value={100}>Top 100</option>
-                      <option value={-1}>{lang === 'vi' ? 'Tất cả' : 'Show all'}</option>
+                      {layoutMode === 'grid' ? (
+                        <>
+                          <option value={9}>Top 9</option>
+                          <option value={21}>Top 21</option>
+                          <option value={51}>Top 51</option>
+                          <option value={99}>Top 99</option>
+                          <option value={-1}>{lang === 'vi' ? 'Tất cả' : 'Show all'}</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value={10}>Top 10</option>
+                          <option value={20}>Top 20</option>
+                          <option value={50}>Top 50</option>
+                          <option value={100}>Top 100</option>
+                          <option value={-1}>{lang === 'vi' ? 'Tất cả' : 'Show all'}</option>
+                        </>
+                      )}
                     </select>
                   </div>
                 </div>
@@ -2779,7 +3088,7 @@ function App() {
                     {t.exportSelectTop}
                   </label>
                   <div className="grid grid-cols-3 gap-2.5">
-                    {[10, 20, 30, 50, -1].map((opt) => (
+                    {(layoutMode === 'grid' ? [9, 21, 51, 99, -1] : [10, 20, 50, 100, -1]).map((opt) => (
                       <button
                         key={opt}
                         onClick={() => setExportLimit(opt)}
