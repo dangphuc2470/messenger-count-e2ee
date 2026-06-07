@@ -269,6 +269,12 @@ const TRANSLATIONS = {
     uploadSub: "Click to select your extracted your_facebook_activity folder.",
     uploadZipTitle: "Select Messenger ZIP files",
     uploadZipSub: "Select one or more Facebook ZIP files. Also supports separate E2EE export (messages.zip).",
+    secureTitle: "Absolute Security",
+    secureDesc: "Processed entirely locally in your browser via Web Worker. No files are uploaded to any server.",
+    mergeTitle: "Merge E2EE Chats",
+    mergeDesc: "Automatically detect and merge conversation fragments split by end-to-end encryption (E2EE) or file separation.",
+    chartTitle: "Interactive Charts",
+    chartDesc: "Visualize message volume over time by year, month, hour of day, and days of the week.",
     extractingZip: "Extracting ZIP...",
     extractingZipDesc: "Finding and extracting message JSON files. Skipping photos, videos, and other files.",
     uploadAvatarHint: "Want profile avatars? Save your Facebook friends page (Ctrl+S) and place it in the same folder.",
@@ -1997,10 +2003,15 @@ function App() {
                     <p className="text-xs font-bold text-[#1D1B20]">
                       {lang === 'vi' ? 'Ảnh đại diện (tùy chọn)' : 'Profile avatars (optional)'}
                     </p>
-                    <p className="text-[10px] text-[#49454F] truncate">
+                    <p className="text-[10px] text-[#49454F] leading-normal">
                       {lang === 'vi'
-                        ? 'Chọn file HTML bạn bè để tự động yêu cầu chọn thư mục ảnh tương ứng'
-                        : 'Select friends HTML file to auto-prompt for the companion image folder'}
+                        ? 'Chọn file HTML bạn bè để tự động yêu cầu chọn thư mục ảnh tương ứng.'
+                        : 'Select friends HTML file to auto-prompt for the companion image folder.'}
+                    </p>
+                    <p className="text-[10px] text-[#6750A4] font-medium leading-normal mt-0.5">
+                      {lang === 'vi'
+                        ? '💡 Mẹo: Nhấn Ctrl+S trên trang bạn bè Facebook để tải file HTML này và thư mục ảnh tương ứng.'
+                        : '💡 Tip: Press Ctrl+S on your Facebook friends page to download this HTML file and its companion image folder.'}
                     </p>
                   </div>
                 </div>
@@ -2077,14 +2088,8 @@ function App() {
 
             </div>{/* end w-full max-w-2xl container */}
 
-            {/* Avatar hint */}
-            <div className="text-sm text-[#49454F] flex items-start gap-2.5 max-w-xl bg-[#E9EEF6] border border-[#CAC4D0] rounded-2xl px-5 py-3.5 mb-12 text-left">
-              <Info className="w-4 h-4 text-[#0B57D0] shrink-0 mt-0.5" />
-              <span>{t.uploadAvatarHint}</span>
-            </div>
-
             {/* Material 3 Features Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full text-left">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full text-left mt-8">
               <div className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0]">
                 <div className="flex items-center gap-3 mb-4 text-[#0B57D0]">
                   <Shield className="w-6 h-6" />
