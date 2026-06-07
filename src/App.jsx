@@ -10,7 +10,7 @@ import {
 import { Chart, registerables } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
 import html2canvas from 'html2canvas-pro';
-import { Unzip, UnzipInflate } from 'fflate';
+import { Unzip, UnzipInflate, UnzipPassThrough } from 'fflate';
 
 // Register Chart.js components
 Chart.register(...registerables, zoomPlugin);
@@ -55,19 +55,21 @@ function extractJsonsFromZip(zipFile, onProgress) {
           let offset = 0;
           for (const c of chunks) { merged.set(c, offset); offset += c.length; }
 
-          const blob = new Blob([merged], { type: 'application/json' });
           const fileName = name.split('/').pop();
           // E2EE flat files get a virtual path so the worker's E2EE detection works
           const virtualPath = isE2EEFlatJson ? `messages/extracted/${fileName}` : name;
-          Object.defineProperty(blob, 'name', { value: fileName });
-          Object.defineProperty(blob, 'webkitRelativePath', { value: virtualPath });
-          blobs.push(blob);
+          // Use File (not Blob) — File.name is preserved in postMessage structured clone;
+          // Blob custom properties set via Object.defineProperty are NOT.
+          // Worker uses `file.webkitRelativePath || file.name` so full path as name works.
+          const fileObj = new File([merged], virtualPath, { type: 'application/json' });
+          blobs.push(fileObj);
           if (onProgress) onProgress(blobs.length, fileName);
         }
       };
       stream.start();
     });
-    unzipper.register(UnzipInflate);
+    unzipper.register(UnzipInflate);    // method 8 - DEFLATE
+    unzipper.register(UnzipPassThrough); // method 0 - STORED (uncompressed)
 
     const reader = zipFile.stream().getReader();
     function pump() {
