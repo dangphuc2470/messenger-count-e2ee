@@ -445,8 +445,10 @@ function App() {
   const previewParentRef = useRef(null);
   const exportPreviewRef = useRef(null);
 
-  const exportAreaRef = useRef(null);
   const zipAvatarFilesRef = useRef([]); // HTML + images for avatar parsing in ZIP mode
+  const [zipAvatarHtmlFile, setZipAvatarHtmlFile] = useState(null);
+  const [zipAvatarImgCount, setZipAvatarImgCount] = useState(0);
+  const [zipAvatarFolderName, setZipAvatarFolderName] = useState('');
 
   // Web Worker Reference
   const workerRef = useRef(null);
@@ -898,6 +900,50 @@ function App() {
     } catch (err) {
       console.error('Failed to parse Facebook friends HTML:', err);
       return {};
+    }
+  };
+
+  // Helper handlers for ZIP avatar parsing flow
+  const handleHtmlFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setZipAvatarHtmlFile(file);
+    setZipAvatarImgCount(0);
+    
+    // Calculate expected folder name
+    const baseName = file.name.replace(/\.html?$/i, '');
+    const expectedFolder = `${baseName}_files`;
+    setZipAvatarFolderName(expectedFolder);
+
+    zipAvatarFilesRef.current = [file];
+
+    // Automatically open folder picker
+    const folderInput = document.getElementById('zip-avatar-folder-upload');
+    if (folderInput) {
+      folderInput.click();
+    }
+  };
+
+  const handleFolderChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    const htmlFiles = files.filter(f => f.name.endsWith('.html') || f.name.endsWith('.htm'));
+    const imageFiles = files.filter(f => /\.(jpe?g|png|gif|webp)$/i.test(f.name));
+
+    let currentHtml = zipAvatarHtmlFile;
+    if (htmlFiles.length > 0) {
+      currentHtml = htmlFiles[0];
+      setZipAvatarHtmlFile(htmlFiles[0]);
+    }
+
+    setZipAvatarImgCount(imageFiles.length);
+
+    if (currentHtml) {
+      zipAvatarFilesRef.current = [currentHtml, ...imageFiles];
+    } else {
+      zipAvatarFilesRef.current = imageFiles;
     }
   };
 
@@ -1942,43 +1988,92 @@ function App() {
               </div>
 
               {/* Avatar files for ZIP mode (optional) */}
-              <label
-                htmlFor="zip-avatar-upload"
-                className="mt-3 flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-[#F0F4F9] border border-dashed border-[#CAC4D0] cursor-pointer hover:bg-[#E9EEF6] hover:border-[#0B57D0] transition-all group"
-              >
-                <div className="p-2 rounded-full bg-[#D3E3FD] shrink-0">
-                  <User className="w-4 h-4 text-[#0B57D0]" />
+              <div className="mt-3 flex flex-col gap-3 px-5 py-3.5 rounded-2xl bg-[#F0F4F9] border border-dashed border-[#CAC4D0] w-full text-left">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-[#D3E3FD] shrink-0">
+                    <User className="w-4 h-4 text-[#0B57D0]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-[#1D1B20]">
+                      {lang === 'vi' ? 'Ảnh đại diện (tùy chọn)' : 'Profile avatars (optional)'}
+                    </p>
+                    <p className="text-[10px] text-[#49454F] truncate">
+                      {lang === 'vi'
+                        ? 'Chọn file HTML bạn bè để tự động yêu cầu chọn thư mục ảnh tương ứng'
+                        : 'Select friends HTML file to auto-prompt for the companion image folder'}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-[#1D1B20]">
-                    {lang === 'vi' ? 'Ảnh đại diện (tùy chọn)' : 'Profile avatars (optional)'}
-                  </p>
-                  <p className="text-[10px] text-[#49454F] truncate" id="zip-avatar-label">
-                    {lang === 'vi'
-                      ? 'Chọn file HTML + thư mục ảnh bạn bè Facebook (Ctrl+S) để hiển thị avatar'
-                      : 'Select Facebook friends HTML + image folder (Ctrl+S) to show avatars'}
-                  </p>
+
+                {/* Action Rows */}
+                <div className="flex flex-wrap items-center gap-3 mt-1.5">
+                  {/* HTML File Button */}
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById('zip-avatar-html-upload').click()}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      zipAvatarHtmlFile 
+                        ? 'bg-[#E8F0FE] text-[#0B57D0] border border-[#ADCCF9]' 
+                        : 'bg-white text-[#49454F] border border-[#CAC4D0] hover:bg-[#E9EEF6]'
+                    }`}
+                  >
+                    {zipAvatarHtmlFile ? `📄 ${zipAvatarHtmlFile.name}` : (lang === 'vi' ? 'Chọn file HTML...' : 'Select HTML file...')}
+                  </button>
+
+                  {/* Folder / Images Button */}
+                  <button
+                    type="button"
+                    disabled={!zipAvatarHtmlFile}
+                    onClick={() => document.getElementById('zip-avatar-folder-upload').click()}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      zipAvatarImgCount > 0 
+                        ? 'bg-[#E8F0FE] text-[#0B57D0] border border-[#ADCCF9]' 
+                        : 'bg-white text-[#49454F] border border-[#CAC4D0] hover:bg-[#E9EEF6]'
+                    }`}
+                  >
+                    {zipAvatarImgCount > 0 
+                      ? `📁 ${zipAvatarFolderName} (${zipAvatarImgCount} ${lang === 'vi' ? 'ảnh' : 'images'})` 
+                      : (lang === 'vi' 
+                          ? (zipAvatarHtmlFile ? `Chọn thư mục ${zipAvatarFolderName}...` : 'Chọn thư mục ảnh...') 
+                          : (zipAvatarHtmlFile ? `Select ${zipAvatarFolderName} folder...` : 'Select image folder...'))}
+                  </button>
+
+                  {/* Reset Button */}
+                  {(zipAvatarHtmlFile || zipAvatarImgCount > 0) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setZipAvatarHtmlFile(null);
+                        setZipAvatarImgCount(0);
+                        setZipAvatarFolderName('');
+                        zipAvatarFilesRef.current = [];
+                      }}
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
+                      title={lang === 'vi' ? 'Xóa chọn' : 'Clear selection'}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
+
+                {/* Hidden inputs */}
                 <input
                   type="file"
-                  id="zip-avatar-upload"
-                  multiple
-                  accept=".html,.htm,.jpg,.jpeg,.png,.gif,.webp"
+                  id="zip-avatar-html-upload"
+                  accept=".html,.htm"
                   className="hidden"
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files);
-                    zipAvatarFilesRef.current = files;
-                    const label = document.getElementById('zip-avatar-label');
-                    if (label) {
-                      const htmlCount = files.filter(f => f.name.endsWith('.html') || f.name.endsWith('.htm')).length;
-                      const imgCount = files.filter(f => /\.(jpe?g|png|gif|webp)$/i.test(f.name)).length;
-                      label.textContent = lang === 'vi'
-                        ? `Đã chọn: ${htmlCount} HTML, ${imgCount} ảnh`
-                        : `Selected: ${htmlCount} HTML, ${imgCount} images`;
-                    }
-                  }}
+                  onChange={handleHtmlFileChange}
                 />
-              </label>
+                <input
+                  type="file"
+                  id="zip-avatar-folder-upload"
+                  webkitdirectory=""
+                  directory=""
+                  multiple
+                  className="hidden"
+                  onChange={handleFolderChange}
+                />
+              </div>
 
             </div>{/* end w-full max-w-2xl container */}
 
