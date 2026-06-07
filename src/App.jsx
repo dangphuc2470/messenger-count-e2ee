@@ -1959,12 +1959,7 @@ function App() {
                     <FolderOpen className="w-7 h-7 text-[#0B57D0]" />
                   </div>
                   <span className="text-lg font-bold text-[#1D1B20] mb-1.5 text-center">{t.uploadTitle}</span>
-                  <span className="text-xs text-[#49454F] text-center mb-2">{t.uploadSub}</span>
-                  <span className="text-[10px] text-[#6750A4] font-medium text-center max-w-[240px] leading-normal mt-auto">
-                    {lang === 'vi'
-                      ? '💡 Mẹo: Có thể ném luôn file HTML bạn bè và thư mục ảnh vào chung thư mục này để tự động nhận diện avatar!'
-                      : '💡 Tip: Place the friends HTML file & image folder inside this directory to auto-load avatars!'}
-                  </span>
+                  <span className="text-xs text-[#49454F] text-center">{t.uploadSub}</span>
                   <input
                     type="file"
                     id="folder-upload"
@@ -1985,12 +1980,7 @@ function App() {
                     <FileArchive className="w-7 h-7 text-[#0B57D0]" />
                   </div>
                   <span className="text-lg font-bold text-[#1D1B20] mb-1.5 text-center">{t.uploadZipTitle}</span>
-                  <span className="text-xs text-[#49454F] text-center mb-2">{t.uploadZipSub}</span>
-                  <span className="text-[10px] text-[#0B57D0] font-medium text-center max-w-[240px] leading-normal mt-auto">
-                    {lang === 'vi'
-                      ? '💡 Mẹo: Nhấn giữ Ctrl (hoặc Cmd) khi chọn tệp để tải lên đồng thời nhiều file ZIP cùng lúc!'
-                      : '💡 Tip: Hold Ctrl (or Cmd) when choosing files to upload multiple ZIPs at the same time!'}
-                  </span>
+                  <span className="text-xs text-[#49454F] text-center">{t.uploadZipSub}</span>
                   <input
                     type="file"
                     id="zip-upload"
@@ -2003,8 +1993,11 @@ function App() {
 
               </div>
 
-              {/* Avatar files for ZIP mode (optional) */}
-              <div className="mt-3 flex flex-col gap-3 px-5 py-3.5 rounded-2xl bg-[#F0F4F9] border border-dashed border-[#CAC4D0] w-full text-left">
+            </div>{/* end w-full max-w-2xl container */}
+
+            {/* Avatar files for ZIP mode (optional) */}
+            <div className="w-full max-w-2xl mb-8 -mt-4">
+              <div className="flex flex-col gap-3 px-5 py-3.5 rounded-2xl bg-[#F0F4F9] border border-dashed border-[#CAC4D0] w-full text-left">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-full bg-[#D3E3FD] shrink-0">
                     <User className="w-4 h-4 text-[#0B57D0]" />
@@ -2020,8 +2013,8 @@ function App() {
                     </p>
                     <p className="text-[10px] text-[#6750A4] font-medium leading-normal mt-0.5">
                       {lang === 'vi'
-                        ? '💡 Mẹo: Nhấn Ctrl+S trên trang bạn bè Facebook để tải file HTML này và thư mục ảnh tương ứng.'
-                        : '💡 Tip: Press Ctrl+S on your Facebook friends page to download this HTML file and its companion image folder.'}
+                        ? '💡 Mẹo: Nhấn Ctrl+S trên trang bạn bè Facebook để tải file HTML này và thư mục ảnh tương ứng về máy (hoặc nếu dùng chọn thư mục ở trên, bạn chỉ cần ném luôn cả 2 tệp này vào chung thư mục là xong).'
+                        : '💡 Tip: Press Ctrl+S on Facebook friends page to save it (HTML file + image folder). If using the folder selector above, simply place both files inside that folder.'}
                     </p>
                   </div>
                 </div>
