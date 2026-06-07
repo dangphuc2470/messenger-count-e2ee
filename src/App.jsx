@@ -445,6 +445,17 @@ function App() {
   const [showRevealDropdown, setShowRevealDropdown] = useState(false);
   const revealDropdownRef = useRef(null);
 
+  // Leaderboard JSON Export States
+  const [jsonIncludeOverview, setJsonIncludeOverview] = useState(true);
+  const [jsonIncludeTimeline, setJsonIncludeTimeline] = useState(false);
+
+  // Detail Modal Export States
+  const [showDetailExportMenu, setShowDetailExportMenu] = useState(false);
+  const [isExportingDetailJson, setIsExportingDetailJson] = useState(false);
+  const [isExportingDetailImage, setIsExportingDetailImage] = useState(false);
+  const detailReportRef = useRef(null);
+  const detailExportMenuRef = useRef(null);
+
   // Export WYSIWYG Preview States
   const [previewScale, setPreviewScale] = useState(0.35);
   const [templateHeight, setTemplateHeight] = useState(1000);
@@ -553,7 +564,7 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedGroupDetails, showExportModal, showCacheMenu, showRevealDropdown]);
 
-  // Handle click outside for cache dropdown menu and reveal names dropdown
+  // Handle click outside for cache dropdown menu, reveal names dropdown and detail export menu
   useEffect(() => {
     function handleClickOutside(event) {
       if (cacheMenuRef.current && !cacheMenuRef.current.contains(event.target)) {
@@ -561,6 +572,9 @@ function App() {
       }
       if (revealDropdownRef.current && !revealDropdownRef.current.contains(event.target)) {
         setShowRevealDropdown(false);
+      }
+      if (detailExportMenuRef.current && !detailExportMenuRef.current.contains(event.target)) {
+        setShowDetailExportMenu(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -665,7 +679,7 @@ function App() {
   };
 
   const handleExportJson = () => {
-    const exportGroups = filteredAndSortedGroups
+    const leaderboard = filteredAndSortedGroups
       .slice(0, exportLimit === -1 ? undefined : exportLimit)
       .map((group, index) => {
         const totalMedia = Object.values(group.mediaCounts).reduce((acc, val) => acc + val, 0);
@@ -674,7 +688,8 @@ function App() {
             ? group.title
             : (lang === 'vi' ? `Liên hệ #${index + 1}` : `Contact #${index + 1}`))
           : group.title;
-        return {
+        
+        const item = {
           rank: index + 1,
           title: displayName,
           type: group.type,
@@ -686,14 +701,90 @@ function App() {
           firstMessage: group.dateRange?.start || null,
           lastMessage: group.dateRange?.end || null
         };
+
+        if (jsonIncludeTimeline) {
+          item.timeline = {
+            monthly: group.monthlyCounts,
+            hourly: group.hourlyCounts
+          };
+        }
+
+        return item;
       });
 
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportGroups, null, 2));
+    let exportData = leaderboard;
+
+    if (jsonIncludeOverview) {
+      exportData = {
+        overview: {
+          totalMessages: statsMode === 'personal' ? globalStats.personal.totalMessages : globalStats.totalMessages,
+          totalReactions: statsMode === 'personal' ? globalStats.personal.totalReactions : globalStats.totalReactions,
+          totalContacts: analyzedGroups.length,
+          totalMedia: statsMode === 'personal' ? globalStats.personal.totalMedia : globalStats.totalMedia,
+          totalWords: statsMode === 'personal' ? globalStats.personal.totalWords : globalStats.totalWords,
+          totalCharacters: statsMode === 'personal' ? globalStats.personal.totalCharacters : globalStats.totalCharacters,
+          dateRange: globalStats.dateRange
+        },
+        leaderboard
+      };
+    }
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
     const link = document.createElement('a');
     link.download = `messenger_leaderboard_top_${exportLimit === -1 ? 'all' : exportLimit}.json`;
     link.href = dataStr;
     link.click();
     setShowExportModal(false);
+  };
+
+  const handleExportDetailJson = (format) => {
+    if (!workerRef.current || !selectedGroupDetails) return;
+    setIsExportingDetailJson(true);
+    workerRef.current.postMessage({
+      type: 'EXPORT_CHAT_JSON',
+      data: {
+        fileIndices: selectedGroupDetails.files.map(f => f.fileIndex),
+        title: selectedGroupDetails.title,
+        format
+      }
+    });
+  };
+
+  const handleDownloadDetailJsonComplete = (data) => {
+    const { title, jsonContent, format } = data;
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(jsonContent, null, 2));
+    const link = document.createElement('a');
+    link.download = `${title.toLowerCase().replace(/[^a-z0-9]/g, '_')}_messages_${format}.json`;
+    link.href = dataStr;
+    link.click();
+    setIsExportingDetailJson(false);
+    setShowDetailExportMenu(false);
+  };
+
+  const handleExportDetailImage = async () => {
+    if (!detailReportRef.current || !selectedGroupDetails) return;
+    setIsExportingDetailImage(true);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    try {
+      const canvas = await html2canvas(detailReportRef.current, {
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#F8FAFC',
+        scale: 2,
+        logging: false
+      });
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      const sanitizedTitle = selectedGroupDetails.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      link.download = `${sanitizedTitle}_stats_report.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (error) {
+      console.error('Failed to export details image', error);
+      alert(lang === 'vi' ? 'Lỗi khi xuất ảnh chi tiết. Vui lòng thử lại!' : 'Failed to export details image. Please try again.');
+    } finally {
+      setIsExportingDetailImage(false);
+    }
   };
 
   const handleLoadCache = async () => {
@@ -807,6 +898,9 @@ function App() {
           setGlobalStats(data.globalStats);
           setAnalyzedGroups(data.groups);
           setScreen('dashboard');
+          break;
+        case 'EXPORT_CHAT_JSON_COMPLETE':
+          handleDownloadDetailJsonComplete(data);
           break;
         default:
           break;
@@ -3076,31 +3170,107 @@ function App() {
               </div>
             </div>
 
-            {/* Modal Tabs / Segmented Buttons */}
-            <div className="flex gap-2 mb-6 bg-[#E9EEF6] p-1 rounded-full max-w-xs border border-[#CAC4D0]">
-              <button
-                onClick={() => setModalTab('stats')}
-                className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${modalTab === 'stats'
-                  ? 'bg-[#0B57D0] text-white shadow'
-                  : 'text-[#49454F] hover:text-[#1D1B20]'
-                  }`}
-              >
-                {t.modalReportTab}
-              </button>
-              <button
-                onClick={() => setModalTab('chat')}
-                className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${modalTab === 'chat'
-                  ? 'bg-[#0B57D0] text-white shadow'
-                  : 'text-[#49454F] hover:text-[#1D1B20]'
-                  }`}
-              >
-                {t.modalChatTab}
-              </button>
+            {/* Modal Navigation & Export Controls */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pt-2">
+              {/* Modal Tabs / Segmented Buttons */}
+              <div className="flex gap-2 bg-[#E9EEF6] p-1 rounded-full max-w-xs border border-[#CAC4D0] w-full sm:w-auto">
+                <button
+                  onClick={() => setModalTab('stats')}
+                  className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${modalTab === 'stats'
+                    ? 'bg-[#0B57D0] text-white shadow'
+                    : 'text-[#49454F] hover:text-[#1D1B20]'
+                    }`}
+                >
+                  {t.modalReportTab}
+                </button>
+                <button
+                  onClick={() => setModalTab('chat')}
+                  className={`flex-1 sm:flex-initial px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${modalTab === 'chat'
+                    ? 'bg-[#0B57D0] text-white shadow'
+                    : 'text-[#49454F] hover:text-[#1D1B20]'
+                    }`}
+                >
+                  {t.modalChatTab}
+                </button>
+              </div>
+
+              {/* Detail Export Actions */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {modalTab === 'stats' && (
+                  <button
+                    onClick={handleExportDetailImage}
+                    disabled={isExportingDetailImage}
+                    className="py-2 px-4 rounded-full bg-[#E9EEF6] hover:bg-[#D3E3FD] text-[#0B57D0] border border-[#CAC4D0] text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                  >
+                    {isExportingDetailImage ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>{lang === 'vi' ? 'Đang tạo...' : 'Generating...'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-3.5 h-3.5" />
+                        <span>{lang === 'vi' ? 'Xuất ảnh thống kê' : 'Export Stats Image'}</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {/* Dropdown for JSON Export */}
+                <div ref={detailExportMenuRef} className="relative">
+                  <button
+                    onClick={() => setShowDetailExportMenu(!showDetailExportMenu)}
+                    disabled={isExportingDetailJson}
+                    className="py-2 px-4 rounded-full bg-[#0B57D0] hover:bg-[#0842A0] text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow cursor-pointer disabled:opacity-50"
+                  >
+                    {isExportingDetailJson ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>{lang === 'vi' ? 'Đang xuất...' : 'Exporting...'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>{lang === 'vi' ? 'Xuất tin nhắn JSON' : 'Export messages JSON'}</span>
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </>
+                    )}
+                  </button>
+
+                  {showDetailExportMenu && (
+                    <div className="absolute right-0 top-full mt-1.5 w-64 rounded-2xl bg-white border border-[#CAC4D0] shadow-lg py-2.5 z-50 font-sans text-xs">
+                      <button
+                        onClick={() => handleExportDetailJson('mine')}
+                        className="w-full text-left px-4 py-2 hover:bg-[#F0F4F9] text-[#1D1B20] transition-colors flex flex-col font-bold cursor-pointer"
+                      >
+                        <span>{lang === 'vi' ? '1. Định dạng rút gọn (mine)' : '1. Clean Custom format'}</span>
+                        <span className="text-[10px] text-[#625B71] font-normal mt-0.5">{lang === 'vi' ? 'Dạng danh sách tin nhắn phẳng tối giản' : 'Minimalist flat message list array'}</span>
+                      </button>
+                      <hr className="my-1.5 border-[#CAC4D0]/50" />
+                      <button
+                        onClick={() => handleExportDetailJson('fb_old')}
+                        className="w-full text-left px-4 py-2 hover:bg-[#F0F4F9] text-[#1D1B20] transition-colors flex flex-col font-bold cursor-pointer"
+                      >
+                        <span>{lang === 'vi' ? '2. Facebook (Cấu trúc cũ - non-E2EE)' : '2. Facebook format (non-E2EE)'}</span>
+                        <span className="text-[10px] text-[#625B71] font-normal mt-0.5">{lang === 'vi' ? 'Bao gồm sender_name, timestamp_ms,...' : 'Includes sender_name, timestamp_ms,...'}</span>
+                      </button>
+                      <hr className="my-1.5 border-[#CAC4D0]/50" />
+                      <button
+                        onClick={() => handleExportDetailJson('fb_e2ee')}
+                        className="w-full text-left px-4 py-2 hover:bg-[#F0F4F9] text-[#1D1B20] transition-colors flex flex-col font-bold cursor-pointer"
+                      >
+                        <span>{lang === 'vi' ? '3. Facebook (Cấu trúc mới - E2EE)' : '3. Facebook format (E2EE)'}</span>
+                        <span className="text-[10px] text-[#625B71] font-normal mt-0.5">{lang === 'vi' ? 'Bao gồm senderName, timestampMs,...' : 'Includes senderName, timestampMs,...'}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* TAB 1: ANALYTICS REPORT */}
             {modalTab === 'stats' && (
-              <div>
+              <div ref={detailReportRef} className="p-4 bg-[#F8FAFC] rounded-3xl border border-[#CAC4D0]/40 overflow-y-auto max-h-[55vh] pr-2">
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
                   <div className="p-4 rounded-2xl bg-[#F0F4F9] border border-[#CAC4D0]">
@@ -3546,6 +3716,33 @@ function App() {
                       </div>
                     </div>
                   )}
+                </div>
+
+                {/* JSON Options Checkboxes */}
+                <div className="space-y-4 bg-[#F0F4F9] border border-[#CAC4D0] rounded-2xl p-4">
+                  <span className="block text-xs font-bold text-[#49454F] uppercase tracking-wider mb-2">
+                    {lang === 'vi' ? 'Tùy chọn xuất JSON' : 'JSON Export Options'}
+                  </span>
+
+                  <label className="flex items-center gap-2.5 text-xs text-[#1D1B20] font-semibold cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={jsonIncludeOverview}
+                      onChange={(e) => setJsonIncludeOverview(e.target.checked)}
+                      className="w-4 h-4 rounded text-[#0B57D0] focus:ring-[#0B57D0] cursor-pointer"
+                    />
+                    <span>{lang === 'vi' ? 'Bao gồm Tổng quan (Overview)' : 'Include Overview summary'}</span>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 text-xs text-[#1D1B20] font-semibold cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={jsonIncludeTimeline}
+                      onChange={(e) => setJsonIncludeTimeline(e.target.checked)}
+                      className="w-4 h-4 rounded text-[#0B57D0] focus:ring-[#0B57D0] cursor-pointer"
+                    />
+                    <span>{lang === 'vi' ? 'Bao gồm Timeline của từng người' : 'Include monthly/hourly timeline for each contact'}</span>
+                  </label>
                 </div>
 
                 {/* Action Buttons */}
