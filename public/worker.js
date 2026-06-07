@@ -104,7 +104,7 @@ self.onmessage = async function (e) {
   } else if (type === 'ANALYZE_GROUPS') {
     await analyzeGroups(data.selectedGroupIds, data.mergeConfig);
   } else if (type === 'EXPORT_CHAT_JSON') {
-    await exportChatJson(data.fileIndices, data.title, data.format);
+    await exportChatJson(data.fileIndices, data.title, data.format, data.messagesList, data.participants);
   }
 };
 
@@ -415,6 +415,7 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
       const messages = json.messages || [];
       
       stats.files.push({
+        fileIndex: fileIndex,
         fileName: file.name,
         filePath: file.webkitRelativePath || file.name,
         fileSize: file.size,
@@ -760,9 +761,46 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
 /**
  * Phase 3: Export single chat JSON with decoded characters and custom formats
  */
-async function exportChatJson(fileIndices, title, format) {
+async function exportChatJson(fileIndices, title, format, fallbackMessagesList, fallbackParticipants) {
   const messages = [];
   const participantsSet = new Set();
+
+  if (storedFiles.length === 0) {
+    if (format === 'mine') {
+      const customMessages = (fallbackMessagesList || []).map(msg => ({
+        sender: msg.sender,
+        content: msg.content || '',
+        timestamp: msg.timestamp,
+        isReaction: !!msg.isReaction,
+        isMedia: !!msg.isMedia,
+        mediaType: msg.mediaType || null
+      }));
+      customMessages.sort((a, b) => a.timestamp - b.timestamp);
+
+      self.postMessage({
+        type: 'EXPORT_CHAT_JSON_COMPLETE',
+        data: {
+          title: title,
+          jsonContent: {
+            title: title,
+            participants: fallbackParticipants || [],
+            messages: customMessages
+          },
+          format: format
+        }
+      });
+      return;
+    } else {
+      self.postMessage({
+        type: 'EXPORT_CHAT_JSON_ERROR',
+        data: {
+          title: title,
+          format: format
+        }
+      });
+      return;
+    }
+  }
 
   for (const fileIndex of fileIndices) {
     const file = storedFiles[fileIndex];

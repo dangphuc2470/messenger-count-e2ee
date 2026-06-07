@@ -745,7 +745,9 @@ function App() {
       data: {
         fileIndices: selectedGroupDetails.files.map(f => f.fileIndex),
         title: selectedGroupDetails.title,
-        format
+        format,
+        messagesList: selectedGroupDetails.messagesList,
+        participants: selectedGroupDetails.participants
       }
     });
   };
@@ -754,7 +756,7 @@ function App() {
     const { title, jsonContent, format } = data;
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(jsonContent, null, 2));
     const link = document.createElement('a');
-    link.download = `${title.toLowerCase().replace(/[^a-z0-9]/g, '_')}_messages_${format}.json`;
+    link.download = `${title.replace(/[/\\:*?"<>|]/g, '').replace(/\s+/g, '_')}_messages_${format}.json`;
     link.href = dataStr;
     link.click();
     setIsExportingDetailJson(false);
@@ -764,18 +766,23 @@ function App() {
   const handleExportDetailImage = async () => {
     if (!detailReportRef.current || !selectedGroupDetails) return;
     setIsExportingDetailImage(true);
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise(resolve => setTimeout(resolve, 500));
     try {
-      const canvas = await html2canvas(detailReportRef.current, {
+      const element = detailReportRef.current;
+      const canvas = await html2canvas(element, {
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#F8FAFC',
         scale: 2,
-        logging: false
+        logging: false,
+        width: element.scrollWidth,
+        height: element.scrollHeight,
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight
       });
       const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
-      const sanitizedTitle = selectedGroupDetails.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const sanitizedTitle = selectedGroupDetails.title.replace(/[\/\\:*?"<>|]/g, '').replace(/\s+/g, '_');
       link.download = `${sanitizedTitle}_stats_report.png`;
       link.href = dataUrl;
       link.click();
@@ -901,6 +908,12 @@ function App() {
           break;
         case 'EXPORT_CHAT_JSON_COMPLETE':
           handleDownloadDetailJsonComplete(data);
+          break;
+        case 'EXPORT_CHAT_JSON_ERROR':
+          setIsExportingDetailJson(false);
+          alert(lang === 'vi'
+            ? 'Không thể xuất định dạng gốc từ dữ liệu lưu tạm. Vui lòng tải lại thư mục/file zip tin nhắn để xuất.'
+            : 'Cannot export original Facebook format from cached data. Please re-upload message files/zip.');
           break;
         default:
           break;
@@ -3128,11 +3141,12 @@ function App() {
       {/* ==================== SCREEN 6: DETAILS MODAL ==================== */}
       {selectedGroupDetails && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto">
-          <div className="relative w-full max-w-4xl rounded-[32px] bg-[#F8FAFC] border border-[#CAC4D0] p-6 sm:p-8 overflow-hidden my-8 shadow-2xl">
+          <div ref={detailReportRef} className={`relative w-full max-w-4xl rounded-[32px] bg-[#F8FAFC] border border-[#CAC4D0] p-6 sm:p-8 my-8 shadow-2xl ${isExportingDetailImage ? '' : 'overflow-hidden'}`}>
 
             {/* Close */}
             <button
               onClick={() => setSelectedGroupDetails(null)}
+              data-html2canvas-ignore="true"
               className="absolute top-5 right-5 p-2.5 rounded-full bg-[#E9EEF6] hover:bg-[#E6E1E5] text-[#49454F] hover:text-[#1D1B20] transition-colors cursor-pointer border border-[#CAC4D0]"
             >
               <X className="w-5 h-5" />
@@ -3171,7 +3185,7 @@ function App() {
             </div>
 
             {/* Modal Navigation & Export Controls */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pt-2">
+            <div data-html2canvas-ignore="true" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pt-2">
               {/* Modal Tabs / Segmented Buttons */}
               <div className="flex gap-2 bg-[#E9EEF6] p-1 rounded-full max-w-xs border border-[#CAC4D0] w-full sm:w-auto">
                 <button
@@ -3270,7 +3284,7 @@ function App() {
 
             {/* TAB 1: ANALYTICS REPORT */}
             {modalTab === 'stats' && (
-              <div ref={detailReportRef} className="p-4 bg-[#F8FAFC] rounded-3xl border border-[#CAC4D0]/40 overflow-y-auto max-h-[55vh] pr-2">
+              <div className={`p-4 bg-[#F8FAFC] rounded-3xl border border-[#CAC4D0]/40 pr-2 ${isExportingDetailImage ? '' : 'overflow-y-auto max-h-[55vh]'}`}>
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
                   <div className="p-4 rounded-2xl bg-[#F0F4F9] border border-[#CAC4D0]">
@@ -3343,7 +3357,7 @@ function App() {
                         <Users className="w-4 h-4 text-[#0B57D0]" />
                         <span>{t.ratioTitle}</span>
                       </h4>
-                      <div className="space-y-4 my-2 max-h-[140px] overflow-y-auto pr-1">
+                      <div className={`space-y-4 my-2 pr-1 ${isExportingDetailImage ? '' : 'max-h-[140px] overflow-y-auto'}`}>
                         {Object.entries(selectedGroupDetails.senderCounts)
                           .sort((a, b) => b[1] - a[1])
                           .map(([name, count]) => {
@@ -3387,7 +3401,7 @@ function App() {
                       return Object.keys(targetFreq).length === 0 ? (
                         <p className="text-xs text-[#49454F] italic text-center py-8">{t.noTextData}</p>
                       ) : (
-                        <div className="flex flex-wrap gap-2 max-h-[160px] overflow-y-auto pr-1">
+                        <div className={`flex flex-wrap gap-2 pr-1 ${isExportingDetailImage ? '' : 'max-h-[160px] overflow-y-auto'}`}>
                           {Object.entries(targetFreq)
                             .slice(0, 20)
                             .map(([word, freq]) => (
