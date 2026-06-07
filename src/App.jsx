@@ -651,26 +651,38 @@ function App() {
     });
   }, [layoutMode]);
 
-  // Injects CSS custom properties into html2canvas cloned document
-  // Needed in production builds where CSS is a linked file, not inline <style> tags
+  // Copies all live stylesheets + fixes SVG currentColor for html2canvas cloned document.
+  // In production Vite extracts CSS to a linked <link> file. The html2canvas clone
+  // document doesn't inherit that stylesheet, so elements render unstyled.
+  // We copy all stylesheet rules inline and also resolve SVG currentColor tokens.
   const buildHtml2canvasOnClone = () => (clonedDoc) => {
-    const rootStyle = getComputedStyle(document.documentElement);
-    const cssVars = [
-      '--md-primary', '--md-on-primary', '--md-primary-container', '--md-on-primary-container',
-      '--md-secondary', '--md-on-secondary', '--md-secondary-container', '--md-on-secondary-container',
-      '--md-background', '--md-on-background', '--md-surface', '--md-on-surface',
-      '--md-surface-variant', '--md-on-surface-variant', '--md-outline', '--md-outline-variant',
-      '--md-surface-container', '--md-surface-container-high', '--md-surface-container-highest'
-    ];
-    let cssText = ':root {';
-    for (const varName of cssVars) {
-      const value = rootStyle.getPropertyValue(varName).trim();
-      if (value) cssText += `${varName}:${value};`;
-    }
-    cssText += '}';
-    const styleEl = clonedDoc.createElement('style');
-    styleEl.textContent = cssText;
-    clonedDoc.head.appendChild(styleEl);
+    // 1. Copy every stylesheet rule from the live document into the clone
+    Array.from(document.styleSheets).forEach(sheet => {
+      try {
+        if (sheet.cssRules && sheet.cssRules.length > 0) {
+          const style = clonedDoc.createElement('style');
+          style.textContent = Array.from(sheet.cssRules).map(r => r.cssText).join('\n');
+          clonedDoc.head.appendChild(style);
+        }
+      } catch (_) {
+        // Cross-origin stylesheet (e.g. Google Fonts) — re-link by href
+        if (sheet.href) {
+          const link = clonedDoc.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = sheet.href;
+          clonedDoc.head.appendChild(link);
+        }
+      }
+    });
+
+    // 2. Resolve Lucide SVG `currentColor` tokens to concrete hex values.
+    // html2canvas serializes SVG to a data URL; `currentColor` loses its parent
+    // context and renders as transparent/black. We replace it with the computed color.
+    clonedDoc.querySelectorAll('svg').forEach(svg => {
+      const color = svg.getAttribute('color') || '#1D1B20';
+      svg.querySelectorAll('[fill="currentColor"]').forEach(el => el.setAttribute('fill', color));
+      svg.querySelectorAll('[stroke="currentColor"]').forEach(el => el.setAttribute('stroke', color));
+    });
   };
 
   const handleExportImage = async () => {
