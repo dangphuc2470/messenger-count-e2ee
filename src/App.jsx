@@ -448,6 +448,20 @@ function App() {
       .catch(err => console.error('Error reading cache:', err));
   }, []);
 
+  // Close any open modal/overlay on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (selectedGroupDetails) { setSelectedGroupDetails(null); return; }
+        if (showExportModal) { setShowExportModal(false); return; }
+        if (showCacheMenu) { setShowCacheMenu(false); return; }
+        if (showRevealDropdown) { setShowRevealDropdown(false); return; }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedGroupDetails, showExportModal, showCacheMenu, showRevealDropdown]);
+
   // Handle click outside for cache dropdown menu and reveal names dropdown
   useEffect(() => {
     function handleClickOutside(event) {
@@ -2280,101 +2294,96 @@ function App() {
             {activeTab === 'leaderboard' && (
               <div className="space-y-6">
 
-                {/* Search & Sort & Filter Controls */}
-                <div className="flex flex-col xl:flex-row gap-4 items-center justify-between bg-[#F0F4F9] p-5 rounded-[28px] border border-[#CAC4D0]">
+                {/* Search & Sort & Filter Controls — single scrollable row */}
+                <div className="flex items-center gap-3 bg-[#F0F4F9] px-4 py-3 rounded-[28px] border border-[#CAC4D0] overflow-x-auto">
 
                   {/* Search Box */}
-                  <div className="relative w-full xl:max-w-xs">
-                    <Search className="w-4 h-4 text-[#49454F] absolute left-4 top-1/2 -translate-y-1/2" />
+                  <div className="relative shrink-0">
+                    <Search className="w-3.5 h-3.5 text-[#49454F] absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       placeholder={t.searchPlaceholder}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-white border border-[#79747E] rounded-full pl-11 pr-4 py-2.5 text-sm text-[#1D1B20] focus:outline-none focus:border-[#0B57D0]"
+                      className="bg-white border border-[#79747E] rounded-full pl-9 pr-3 py-2 text-xs text-[#1D1B20] focus:outline-none focus:border-[#0B57D0] w-44"
                     />
                   </div>
 
-                  {/* Filter & Sort Bar */}
-                  <div className="flex flex-wrap items-center gap-4 w-full xl:w-auto justify-start xl:justify-end">
+                  <span className="text-[#CAC4D0] shrink-0">|</span>
 
-                    {/* Chat Type Filter */}
-                    <div className="flex items-center gap-2.5 w-full md:w-auto">
-                      <Users className="w-4 h-4 text-[#49454F] shrink-0" />
-                      <span className="text-xs text-[#49454F] uppercase tracking-wider font-bold whitespace-nowrap">{t.filterTypeLabel}:</span>
-                      <select
-                        value={filterType}
-                        onChange={(e) => setFilterType(e.target.value)}
-                        className="w-full md:w-auto bg-white border border-[#79747E] text-[#1D1B20] rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-[#0B57D0] cursor-pointer"
-                      >
-                        <option value="all">{t.filterAll}</option>
-                        <option value="individual">{t.individual}</option>
-                        <option value="group">{t.group}</option>
-                        {analyzedGroups.some(g => g.type === CHAT_TYPES.DATING) && (
-                          <option value="dating">{t.dating}</option>
-                        )}
-                        {analyzedGroups.some(g => g.type === CHAT_TYPES.PAGE) && (
-                          <option value="page">{t.page}</option>
-                        )}
-                      </select>
-                    </div>
-
-                    {/* Sort Selector */}
-                    <div className="flex items-center gap-2.5 w-full md:w-auto">
-                      <ArrowUpDown className="w-4 h-4 text-[#49454F] shrink-0" />
-                      <span className="text-xs text-[#49454F] uppercase tracking-wider font-bold whitespace-nowrap">{t.sortByLabel}:</span>
-                      <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                        className="w-full md:w-auto bg-white border border-[#79747E] text-[#1D1B20] rounded-full px-4 py-2.5 text-sm focus:outline-none focus:border-[#0B57D0] cursor-pointer"
-                      >
-                        <option value="messages">{t.sortMessages}</option>
-                        <option value="reactions">{t.sortReactions}</option>
-                        <option value="media">{t.sortMedia}</option>
-                        <option value="words">{t.sortWords}</option>
-                        <option value="characters">{t.sortChars}</option>
-                      </select>
-                    </div>
-
-
-                    {/* Layout Mode Selector */}
-                    <div className="flex items-center gap-1 bg-[#E9EEF6] p-1 rounded-full border border-[#CAC4D0] shadow-sm shrink-0 w-full md:w-auto justify-center">
-                      <button
-                        type="button"
-                        onClick={() => setLayoutMode('grid')}
-                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${layoutMode === 'grid'
-                          ? 'bg-[#0B57D0] text-white shadow'
-                          : 'text-[#49454F] hover:text-[#1D1B20]'
-                          }`}
-                        title={lang === 'vi' ? 'Xem dạng lưới' : 'Grid view'}
-                      >
-                        <LayoutGrid className="w-3.5 h-3.5" />
-                        <span>{lang === 'vi' ? 'Lưới' : 'Grid'}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setLayoutMode('list')}
-                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${layoutMode === 'list'
-                          ? 'bg-[#0B57D0] text-white shadow'
-                          : 'text-[#49454F] hover:text-[#1D1B20]'
-                          }`}
-                        title={lang === 'vi' ? 'Xem dạng danh sách' : 'List view'}
-                      >
-                        <List className="w-3.5 h-3.5" />
-                        <span>{lang === 'vi' ? 'Danh sách' : 'List'}</span>
-                      </button>
-                    </div>
-
-                    {/* Export Image Button */}
-                    <button
-                      onClick={handleOpenExportModal}
-                      className="w-full md:w-auto flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-full bg-[#0B57D0] hover:bg-[#0842A0] text-white text-sm font-bold transition-all shadow cursor-pointer shrink-0"
+                  {/* Chat Type Filter */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[10px] text-[#49454F] uppercase tracking-wider font-bold whitespace-nowrap">{t.filterTypeLabel}:</span>
+                    <select
+                      value={filterType}
+                      onChange={(e) => setFilterType(e.target.value)}
+                      className="bg-white border border-[#79747E] text-[#1D1B20] rounded-full px-3 py-2 text-xs focus:outline-none focus:border-[#0B57D0] cursor-pointer"
                     >
-                      <Download className="w-4.5 h-4.5" />
-                      <span>{t.btnExportImage}</span>
-                    </button>
-
+                      <option value="all">{t.filterAll}</option>
+                      <option value="individual">{t.individual}</option>
+                      <option value="group">{t.group}</option>
+                      {analyzedGroups.some(g => g.type === CHAT_TYPES.DATING) && (
+                        <option value="dating">{t.dating}</option>
+                      )}
+                      {analyzedGroups.some(g => g.type === CHAT_TYPES.PAGE) && (
+                        <option value="page">{t.page}</option>
+                      )}
+                    </select>
                   </div>
+
+                  <span className="text-[#CAC4D0] shrink-0">|</span>
+
+                  {/* Sort Selector */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[10px] text-[#49454F] uppercase tracking-wider font-bold whitespace-nowrap">{t.sortByLabel}:</span>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="bg-white border border-[#79747E] text-[#1D1B20] rounded-full px-3 py-2 text-xs focus:outline-none focus:border-[#0B57D0] cursor-pointer"
+                    >
+                      <option value="messages">{t.sortMessages}</option>
+                      <option value="reactions">{t.sortReactions}</option>
+                      <option value="media">{t.sortMedia}</option>
+                      <option value="words">{t.sortWords}</option>
+                      <option value="characters">{t.sortChars}</option>
+                    </select>
+                  </div>
+
+                  <span className="text-[#CAC4D0] shrink-0">|</span>
+
+                  {/* Layout Mode Selector */}
+                  <div className="flex items-center gap-0.5 bg-[#E9EEF6] p-0.5 rounded-full border border-[#CAC4D0] shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setLayoutMode('grid')}
+                      className={`px-2.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${layoutMode === 'grid' ? 'bg-[#0B57D0] text-white shadow' : 'text-[#49454F] hover:text-[#1D1B20]'}`}
+                      title={lang === 'vi' ? 'Xem dạng lưới' : 'Grid view'}
+                    >
+                      <LayoutGrid className="w-3 h-3" />
+                      <span>{lang === 'vi' ? 'Lưới' : 'Grid'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLayoutMode('list')}
+                      className={`px-2.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${layoutMode === 'list' ? 'bg-[#0B57D0] text-white shadow' : 'text-[#49454F] hover:text-[#1D1B20]'}`}
+                      title={lang === 'vi' ? 'Xem dạng danh sách' : 'List view'}
+                    >
+                      <List className="w-3 h-3" />
+                      <span>{lang === 'vi' ? 'Danh sách' : 'List'}</span>
+                    </button>
+                  </div>
+
+                  {/* Spacer */}
+                  <div className="flex-1" />
+
+                  {/* Export Image Button */}
+                  <button
+                    onClick={handleOpenExportModal}
+                    className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#0B57D0] hover:bg-[#0842A0] text-white text-xs font-bold transition-all shadow cursor-pointer shrink-0"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{t.btnExportImage}</span>
+                  </button>
 
                 </div>
 
@@ -3087,12 +3096,12 @@ function App() {
                   <label className="block text-sm font-bold text-[#49454F] mb-3">
                     {t.exportSelectTop}
                   </label>
-                  <div className="grid grid-cols-3 gap-2.5">
-                    {(layoutMode === 'grid' ? [9, 21, 51, 99, -1] : [10, 20, 50, 100, -1]).map((opt) => (
+                  <div className="grid grid-cols-3 gap-2">
+                    {(layoutMode === 'grid' ? [3, 9, 21, 51, 99, -1] : [3, 10, 20, 50, 100, -1]).map((opt) => (
                       <button
                         key={opt}
-                        onClick={() => setExportLimit(opt)}
-                        className={`py-2 px-3 text-xs font-bold rounded-full border transition-all cursor-pointer text-center ${exportLimit === opt
+                        onClick={() => { setExportLimit(opt); setCustomExportLimit(''); }}
+                        className={`py-2 px-3 text-xs font-bold rounded-full border transition-all cursor-pointer text-center ${exportLimit === opt && customExportLimit === ''
                           ? 'bg-[#0B57D0] text-white border-[#0B57D0] shadow-sm'
                           : 'bg-white text-[#49454F] border-[#CAC4D0] hover:bg-[#F0F4F9]'
                           }`}
@@ -3100,6 +3109,26 @@ function App() {
                         {opt === -1 ? t.exportAllOption : t.exportTopOption(opt)}
                       </button>
                     ))}
+                  </div>
+                  {/* Custom export number input */}
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="text-xs text-[#49454F] font-bold whitespace-nowrap shrink-0">{lang === 'vi' ? 'Số tùy chỉnh:' : 'Custom:'}</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={filteredAndSortedGroups.length}
+                      placeholder={lang === 'vi' ? 'Nhập số...' : 'Enter number...'}
+                      value={customExportLimit}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCustomExportLimit(val);
+                        const n = parseInt(val, 10);
+                        if (!isNaN(n) && n > 0) setExportLimit(n);
+                      }}
+                      className={`w-full bg-white border rounded-full px-3 py-1.5 text-xs focus:outline-none cursor-pointer font-bold shadow-sm ${
+                        customExportLimit !== '' ? 'border-[#0B57D0] ring-1 ring-[#0B57D0]' : 'border-[#79747E] focus:border-[#0B57D0]'
+                      }`}
+                    />
                   </div>
                 </div>
 
