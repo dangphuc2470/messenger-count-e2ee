@@ -354,6 +354,7 @@ function App() {
   const [hideOverview, setHideOverview] = useState(false);
   const [displayLimit, setDisplayLimit] = useState(9);
   const [layoutMode, setLayoutMode] = useState('grid'); // 'grid' | 'list'
+  const [customExportLimit, setCustomExportLimit] = useState('');
   const [revealedNames, setRevealedNames] = useState(new Set());
   const [showRevealDropdown, setShowRevealDropdown] = useState(false);
   const revealDropdownRef = useRef(null);
@@ -508,6 +509,7 @@ function App() {
     setRevealedNames(new Set());
     setShowRevealDropdown(false);
     setExportLimit(layoutMode === 'grid' ? 9 : 10);
+    setCustomExportLimit('');
     setShowExportModal(true);
   };
 
