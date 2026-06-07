@@ -446,6 +446,7 @@ function App() {
   const exportPreviewRef = useRef(null);
 
   const exportAreaRef = useRef(null);
+  const zipAvatarFilesRef = useRef([]); // HTML + images for avatar parsing in ZIP mode
 
   // Web Worker Reference
   const workerRef = useRef(null);
@@ -968,6 +969,21 @@ function App() {
     }
 
     setZipExtracting(false);
+
+    // Parse avatar HTML if user provided one alongside the ZIPs
+    const avatarFiles = zipAvatarFilesRef.current;
+    if (avatarFiles.length > 0) {
+      const htmlFiles = avatarFiles.filter(f => f.name.endsWith('.html') || f.name.endsWith('.htm'));
+      const imageFiles = avatarFiles.filter(f => /\.(jpe?g|png|gif|webp)$/i.test(f.name));
+      if (htmlFiles.length > 0 && imageFiles.length > 0) {
+        parseFacebookFriendsHtml(htmlFiles[0], imageFiles).then(parsed => {
+          if (Object.keys(parsed).length > 0) {
+            setDynamicAvatarMap(parsed);
+            console.log(`[Avatar/ZIP] Parsed ${Object.keys(parsed).length} friends from ${htmlFiles[0].name}`);
+          }
+        });
+      }
+    }
 
     if (allBlobs.length === 0) {
       alert(lang === 'vi'
@@ -1924,7 +1940,47 @@ function App() {
                 </label>
 
               </div>
-            </div>
+
+              {/* Avatar files for ZIP mode (optional) */}
+              <label
+                htmlFor="zip-avatar-upload"
+                className="mt-3 flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-[#F0F4F9] border border-dashed border-[#CAC4D0] cursor-pointer hover:bg-[#E9EEF6] hover:border-[#0B57D0] transition-all group"
+              >
+                <div className="p-2 rounded-full bg-[#D3E3FD] shrink-0">
+                  <User className="w-4 h-4 text-[#0B57D0]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-[#1D1B20]">
+                    {lang === 'vi' ? 'Ảnh đại diện (tùy chọn)' : 'Profile avatars (optional)'}
+                  </p>
+                  <p className="text-[10px] text-[#49454F] truncate" id="zip-avatar-label">
+                    {lang === 'vi'
+                      ? 'Chọn file HTML + thư mục ảnh bạn bè Facebook (Ctrl+S) để hiển thị avatar'
+                      : 'Select Facebook friends HTML + image folder (Ctrl+S) to show avatars'}
+                  </p>
+                </div>
+                <input
+                  type="file"
+                  id="zip-avatar-upload"
+                  multiple
+                  accept=".html,.htm,.jpg,.jpeg,.png,.gif,.webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files);
+                    zipAvatarFilesRef.current = files;
+                    const label = document.getElementById('zip-avatar-label');
+                    if (label) {
+                      const htmlCount = files.filter(f => f.name.endsWith('.html') || f.name.endsWith('.htm')).length;
+                      const imgCount = files.filter(f => /\.(jpe?g|png|gif|webp)$/i.test(f.name)).length;
+                      label.textContent = lang === 'vi'
+                        ? `Đã chọn: ${htmlCount} HTML, ${imgCount} ảnh`
+                        : `Selected: ${htmlCount} HTML, ${imgCount} images`;
+                    }
+                  }}
+                />
+              </label>
+
+            </div>{/* end w-full max-w-2xl container */}
 
             {/* Avatar hint */}
             <div className="text-sm text-[#49454F] flex items-start gap-2.5 max-w-xl bg-[#E9EEF6] border border-[#CAC4D0] rounded-2xl px-5 py-3.5 mb-12 text-left">
