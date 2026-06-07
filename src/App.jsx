@@ -1959,7 +1959,12 @@ function App() {
                     <FolderOpen className="w-7 h-7 text-[#0B57D0]" />
                   </div>
                   <span className="text-lg font-bold text-[#1D1B20] mb-1.5 text-center">{t.uploadTitle}</span>
-                  <span className="text-xs text-[#49454F] text-center">{t.uploadSub}</span>
+                  <span className="text-xs text-[#49454F] text-center mb-2">{t.uploadSub}</span>
+                  <span className="text-[10px] text-[#6750A4] font-medium text-center max-w-[240px] leading-normal mt-auto">
+                    {lang === 'vi'
+                      ? '💡 Mẹo: Có thể ném luôn file HTML bạn bè và thư mục ảnh vào chung thư mục này để tự động nhận diện avatar!'
+                      : '💡 Tip: Place the friends HTML file & image folder inside this directory to auto-load avatars!'}
+                  </span>
                   <input
                     type="file"
                     id="folder-upload"
@@ -1980,7 +1985,12 @@ function App() {
                     <FileArchive className="w-7 h-7 text-[#0B57D0]" />
                   </div>
                   <span className="text-lg font-bold text-[#1D1B20] mb-1.5 text-center">{t.uploadZipTitle}</span>
-                  <span className="text-xs text-[#49454F] text-center">{t.uploadZipSub}</span>
+                  <span className="text-xs text-[#49454F] text-center mb-2">{t.uploadZipSub}</span>
+                  <span className="text-[10px] text-[#0B57D0] font-medium text-center max-w-[240px] leading-normal mt-auto">
+                    {lang === 'vi'
+                      ? '💡 Mẹo: Nhấn giữ Ctrl (hoặc Cmd) khi chọn tệp để tải lên đồng thời nhiều file ZIP cùng lúc!'
+                      : '💡 Tip: Hold Ctrl (or Cmd) when choosing files to upload multiple ZIPs at the same time!'}
+                  </span>
                   <input
                     type="file"
                     id="zip-upload"
