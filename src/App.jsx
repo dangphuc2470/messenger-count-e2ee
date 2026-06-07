@@ -451,6 +451,7 @@ function App() {
   const previewParentRef = useRef(null);
   const exportPreviewRef = useRef(null);
 
+  const exportAreaRef = useRef(null);
   const zipAvatarFilesRef = useRef([]); // HTML + images for avatar parsing in ZIP mode
   const [zipAvatarHtmlFile, setZipAvatarHtmlFile] = useState(null);
   const [zipAvatarImgCount, setZipAvatarImgCount] = useState(0);
