@@ -2013,8 +2013,8 @@ function App() {
                     </p>
                     <p className="text-[10px] text-[#6750A4] font-medium leading-normal mt-0.5">
                       {lang === 'vi'
-                        ? '💡 Mẹo: Nhấn Ctrl+S trên trang bạn bè Facebook để tải file HTML này và thư mục ảnh tương ứng về máy (hoặc nếu dùng chọn thư mục ở trên, bạn chỉ cần ném luôn cả 2 tệp này vào chung thư mục là xong).'
-                        : '💡 Tip: Press Ctrl+S on Facebook friends page to save it (HTML file + image folder). If using the folder selector above, simply place both files inside that folder.'}
+                        ? '💡 Mẹo: Nhấn Ctrl+S trên trang bạn bè Facebook để tải file HTML này và thư mục ảnh tương ứng về máy (hoặc nếu dùng chọn thư mục ở trên, bạn chỉ cần ném luôn tệp HTML và thư mục ảnh này vào chung thư mục là xong).'
+                        : '💡 Tip: Press Ctrl+S on Facebook friends page to save it (HTML file + image folder). If using the folder selector above, simply place the HTML file and image folder inside that folder.'}
                     </p>
                   </div>
                 </div>
