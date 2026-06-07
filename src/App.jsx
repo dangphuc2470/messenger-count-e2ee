@@ -685,16 +685,22 @@ function App() {
       for (const [profileId, info] of Object.entries(profileMap)) {
         if (!info.name) continue;
         let blobUrl = null;
-        let rawFile = null;
+        let rawBlob = null;
         if (info.img && imageFileMap[info.img]) {
-          rawFile = imageFileMap[info.img];
-          blobUrl = URL.createObjectURL(rawFile);
-          newBlobUrls.push(blobUrl);
+          const file = imageFileMap[info.img];
+          try {
+            const arrayBuffer = await file.arrayBuffer();
+            rawBlob = new Blob([arrayBuffer], { type: file.type });
+            blobUrl = URL.createObjectURL(rawBlob);
+            newBlobUrls.push(blobUrl);
+          } catch (e) {
+            console.error('Failed to read image file into blob', e);
+          }
         }
         result[info.name] = {
           img: blobUrl,
           url: `https://www.facebook.com/${profileId}`,
-          rawBlob: rawFile
+          rawBlob: rawBlob
         };
       }
 
@@ -1239,7 +1245,7 @@ function App() {
 
         {/* ==================== SCREEN 1: LANDING ==================== */}
         {screen === 'landing' && (
-          <div className="flex flex-col items-center justify-center flex-grow text-center max-w-4xl mx-auto py-12 w-full">
+          <div className="flex flex-col items-center justify-center text-center max-w-4xl mx-auto py-12 w-full">
 
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#D3E3FD] text-[#041E49] text-sm font-semibold mb-8">
               <Shield className="w-4 h-4 text-[#0B57D0]" />
@@ -1605,7 +1611,7 @@ function App() {
 
         {/* ==================== SCREEN 5: DASHBOARD ==================== */}
         {screen === 'dashboard' && globalStats && (
-          <div className="flex-grow w-full pb-12">
+          <div className="w-full pb-12">
 
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-[#CAC4D0] pb-6">
@@ -2059,7 +2065,7 @@ function App() {
         )}
 
         {/* Footer */}
-        <footer className="mt-auto py-6 border-t border-[#CAC4D0] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#625B71]">
+        <footer className="mt-12 py-6 border-t border-[#CAC4D0] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#625B71]">
           <div className="flex items-center gap-1.5 font-medium">
             <span>© {new Date().getFullYear()} {t.title}</span>
             <span>•</span>
@@ -2566,7 +2572,13 @@ function App() {
               <div>
                 <h1 className="text-3xl font-extrabold text-[#1D1B20] flex items-center gap-3">
                   <BarChart2 className="w-8 h-8 text-[#0B57D0]" />
-                  <span>{t.reportTitle}</span>
+                  <span>
+                    {lang === 'vi' ? (
+                      <>Báo cáo thống kê <span className="text-[#0B57D0]">Messenger</span></>
+                    ) : (
+                      <><span className="text-[#0B57D0]">Messenger</span> Insights Report</>
+                    )}
+                  </span>
                 </h1>
                 <p className="text-sm text-[#49454F] mt-1">
                   {t.activeRange} <span className="text-[#0B57D0] font-bold">{formatDateRange(globalStats?.dateRange)}</span>
