@@ -1552,8 +1552,8 @@ function App() {
 
         {/* Stat Cards Grid (Overview Summary) - rendered unless hideOverview is checked */}
         {!hideOverview && (
-          <div className="grid grid-cols-5 gap-6 mb-2">
-            <div className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] relative overflow-hidden">
+          <div className="flex flex-row gap-6 mb-2 w-full justify-between">
+            <div className="flex-1 p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] relative overflow-hidden">
               <div className="absolute top-4 right-4 text-[#0B57D0]/10">
                 <MessageSquare className="w-12 h-12" />
               </div>
@@ -1564,7 +1564,7 @@ function App() {
               <div className="text-xs text-[#625B71] mt-1">{lang === 'vi' ? 'Xử lý an toàn' : 'Processed securely'}</div>
             </div>
 
-            <div className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] relative overflow-hidden">
+            <div className="flex-1 p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] relative overflow-hidden">
               <div className="absolute top-4 right-4 text-[#0B57D0]/10">
                 <Sparkles className="w-12 h-12" />
               </div>
@@ -1575,7 +1575,7 @@ function App() {
               <div className="text-xs text-[#625B71] mt-1">{lang === 'vi' ? 'Lượt bày tỏ cảm xúc' : 'Total reactions'}</div>
             </div>
 
-            <div className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] relative overflow-hidden">
+            <div className="flex-1 p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] relative overflow-hidden">
               <div className="absolute top-4 right-4 text-[#0B57D0]/10">
                 <Users className="w-12 h-12" />
               </div>
@@ -1586,7 +1586,7 @@ function App() {
               <div className="text-xs text-[#625B71] mt-1">{lang === 'vi' ? 'Đã gộp các tệp E2EE' : 'E2EE folders merged'}</div>
             </div>
 
-            <div className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] relative overflow-hidden">
+            <div className="flex-1 p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] relative overflow-hidden">
               <div className="absolute top-4 right-4 text-[#0B57D0]/10">
                 <Image className="w-12 h-12" />
               </div>
@@ -1597,7 +1597,7 @@ function App() {
               <div className="text-xs text-[#625B71] mt-1">{lang === 'vi' ? 'Ảnh, video, thoại, tệp' : 'Photos, videos, audio, files'}</div>
             </div>
 
-            <div className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] relative overflow-hidden">
+            <div className="flex-1 p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] relative overflow-hidden">
               <div className="absolute top-4 right-4 text-[#0B57D0]/10">
                 <FileText className="w-12 h-12" />
               </div>
@@ -1684,20 +1684,20 @@ function App() {
                     </div>
 
                     {/* Stats Summary columns */}
-                    <div className="grid grid-cols-4 gap-6 text-xs text-[#49454F] font-semibold min-w-[420px]">
-                      <div>
+                    <div className="flex flex-row gap-6 text-xs text-[#49454F] font-semibold min-w-[420px] justify-between">
+                      <div className="flex-1">
                         <span className="block text-[9px] text-[#625B71] uppercase font-bold">{t.sortMessages}</span>
                         <span className="text-sm font-bold text-[#1D1B20] font-mono">{currentGroupStats.messageCount.toLocaleString()}</span>
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <span className="block text-[9px] text-[#625B71] uppercase font-bold">{lang === 'vi' ? 'Cảm xúc' : 'Reactions'}</span>
                         <span className="text-sm font-bold text-[#1D1B20] font-mono">{(currentGroupStats.reactionCount || 0).toLocaleString()}</span>
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <span className="block text-[9px] text-[#625B71] uppercase font-bold">Media</span>
                         <span className="text-sm font-bold text-[#1D1B20] font-mono">{totalMedia.toLocaleString()}</span>
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <span className="block text-[9px] text-[#625B71] uppercase font-bold">{lang === 'vi' ? 'Từ vựng' : 'Words'}</span>
                         <span className="text-sm font-bold text-[#1D1B20] font-mono">{currentGroupStats.totalWords.toLocaleString()}</span>
                       </div>
@@ -1721,7 +1721,7 @@ function App() {
               })}
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-6 font-sans">
+          <div className="flex flex-wrap gap-6 font-sans w-full">
             {filteredAndSortedGroups
               .slice(0, exportLimit === -1 ? undefined : exportLimit)
               .map((group, index) => {
@@ -1754,6 +1754,7 @@ function App() {
                   <div
                     key={group.id}
                     className="p-6 rounded-[28px] bg-[#F0F4F9] border border-[#CAC4D0] flex flex-col justify-between"
+                    style={{ flex: '0 0 calc(33.333% - 16px)', minWidth: '320px' }}
                   >
                     <div>
                       {/* Title + rank */}
@@ -3607,7 +3608,7 @@ function App() {
                       ref={exportPreviewRef}
                       className="w-[1200px] bg-[#F8FAFC] grid-bg p-8 flex flex-col gap-6 text-[#1D1B20] text-left"
                       style={{
-                        fontFamily: "'Plus Jakarta Sans', sans-serif",
+                        fontFamily: "system-ui, -apple-system, sans-serif",
                         transform: `scale(${previewScale})`,
                         transformOrigin: 'top left',
                         position: 'absolute',
@@ -3627,11 +3628,11 @@ function App() {
 
       {/* ==================== OFF-SCREEN EXPORT TEMPLATE ==================== */}
       {globalStats && (
-        <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+        <div style={{ position: 'fixed', left: '-9999px', top: '-9999px', width: '1200px', height: 'auto', overflow: 'hidden' }}>
           <div
             ref={exportAreaRef}
             className="w-[1200px] bg-[#F8FAFC] grid-bg p-8 flex flex-col gap-6 text-[#1D1B20]"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}
           >
             {renderExportTemplateContent()}
           </div>
