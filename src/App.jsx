@@ -5,14 +5,87 @@ import {
   FolderOpen, Calendar, Image, FileText, ChevronRight,
   Search, ArrowUpDown, X, Loader2, Info, ArrowLeft, RefreshCw,
   Clock, Award, MessageCircle, Sparkles, ChevronDown, Download, User,
-  LayoutGrid, List
+  LayoutGrid, List, FileArchive
 } from 'lucide-react';
 import { Chart, registerables } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
 import html2canvas from 'html2canvas-pro';
+import { Unzip, UnzipInflate } from 'fflate';
 
 // Register Chart.js components
 Chart.register(...registerables, zoomPlugin);
+
+// ─── ZIP Streaming Helper ─────────────────────────────────────────────────────
+// Streams a ZIP file entry-by-entry using fflate, extracting only matching JSON files.
+// Never loads the full ZIP into RAM — processes in 64KB chunks via ReadableStream.
+const MESSAGE_FILE_REGEX = /(messages[\/\\](inbox|e2ee_cutover|archived_threads|message_requests|filtered_threads|extracted)?[\/\\]|dating[\/\\]messages[\/\\]).*\.json$/i;
+
+function extractJsonsFromZip(zipFile, onProgress) {
+  return new Promise((resolve, reject) => {
+    const blobs = [];
+    let entryCount = 0;
+    let zipType = null; // 'facebook' | 'e2ee_flat'
+
+    const unzipper = new Unzip((stream) => {
+      const name = stream.name;
+      entryCount++;
+
+      // Detect ZIP type from first entries
+      if (zipType === null) {
+        if (name.startsWith('your_facebook_activity/') || MESSAGE_FILE_REGEX.test(name)) {
+          zipType = 'facebook';
+        } else if (!name.includes('/') && name.endsWith('.json')) {
+          zipType = 'e2ee_flat';
+        }
+      }
+
+      const isFacebookJson = zipType === 'facebook' && MESSAGE_FILE_REGEX.test(name);
+      // e2ee_flat: root-level .json files (no slash in name)
+      const isE2EEFlatJson = (zipType === 'e2ee_flat' || zipType === null) && !name.includes('/') && name.endsWith('.json');
+
+      if (!isFacebookJson && !isE2EEFlatJson) return; // skip — don't decompress
+
+      const chunks = [];
+      stream.ondata = (err, data, final) => {
+        if (err) return;
+        if (data) chunks.push(data);
+        if (final) {
+          const totalLen = chunks.reduce((s, c) => s + c.length, 0);
+          const merged = new Uint8Array(totalLen);
+          let offset = 0;
+          for (const c of chunks) { merged.set(c, offset); offset += c.length; }
+
+          const blob = new Blob([merged], { type: 'application/json' });
+          const fileName = name.split('/').pop();
+          // E2EE flat files get a virtual path so the worker's E2EE detection works
+          const virtualPath = isE2EEFlatJson ? `messages/extracted/${fileName}` : name;
+          Object.defineProperty(blob, 'name', { value: fileName });
+          Object.defineProperty(blob, 'webkitRelativePath', { value: virtualPath });
+          blobs.push(blob);
+          if (onProgress) onProgress(blobs.length, fileName);
+        }
+      };
+      stream.start();
+    });
+    unzipper.register(UnzipInflate);
+
+    const reader = zipFile.stream().getReader();
+    function pump() {
+      reader.read().then(({ done, value }) => {
+        if (done) {
+          try { unzipper.push(new Uint8Array(0), true); } catch (_) {}
+          resolve(blobs);
+          return;
+        }
+        try { unzipper.push(value); } catch (err) { reject(err); return; }
+        pump();
+      }).catch(reject);
+    }
+    pump();
+  });
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 
 // IndexedDB cache utilities for analysis results
 const DB_NAME = 'MessengerInsightsCache';
@@ -78,13 +151,18 @@ const TRANSLATIONS = {
     subtitle: "Khám phá thống kê chi tiết các cuộc trò chuyện trên Facebook của bạn một cách an toàn. Dựng lại lịch sử tin nhắn và hiển thị bảng xếp hạng trực quan.",
     uploadTitle: "Chọn thư mục dữ liệu Messenger",
     uploadSub: "Nhấp để chọn thư mục your_facebook_activity đã giải nén của bạn.",
-    uploadAvatarHint: "Muốn hiển thị ảnh đại diện? Tải trang danh sách bạn bè của bạn trên Facebook về (Ctrl+S) và đặt vào cùng thư mục.",
+    uploadZipTitle: "Chọn file ZIP Messenger",
+    uploadZipSub: "Chọn 1 hoặc nhiều file ZIP từ Facebook. Hỗ trợ cả file E2EE riêng (messages.zip).",
     secureTitle: "Bảo mật tuyệt đối",
     secureDesc: "Xử lý cục bộ hoàn toàn tại trình duyệt thông qua Web Worker. Không tải tệp tin nào lên máy chủ.",
     mergeTitle: "Gộp tin nhắn E2EE",
     mergeDesc: "Tự động phát hiện và gộp các cuộc trò chuyện bị phân mảnh do mã hóa đầu cuối (E2EE) hoặc phân tách tệp.",
     chartTitle: "Biểu đồ trực quan",
     chartDesc: "Trực quan hóa lượng tin nhắn trên dòng thời gian theo năm, tháng, khung giờ và các ngày trong tuần.",
+    extractingZip: "Đang giải nén ZIP...",
+    extractingZipDesc: "Đang tìm và giải nén các file tin nhắn JSON. Bỏ qua ảnh, video và tệp khác.",
+    uploadAvatarHint: "Muốn hiển thị ảnh đại diện? Tải trang danh sách bạn bè của bạn trên Facebook về (Ctrl+S) và đặt vào cùng thư mục.",
+    orDivider: "hoặc",
     scanningTitle: "Đang quét cấu trúc thư mục...",
     scanningDesc: "Trình duyệt đang quét danh sách tệp tin và phân loại các cuộc hội thoại.",
     reviewTitle: "Duyệt và gộp cuộc hội thoại",
@@ -187,13 +265,12 @@ const TRANSLATIONS = {
     subtitle: "Discover detailed statistics of your Facebook conversations securely. Reconstruct chat history and display interactive leaderboards.",
     uploadTitle: "Select Messenger data folder",
     uploadSub: "Click to select your extracted your_facebook_activity folder.",
+    uploadZipTitle: "Select Messenger ZIP files",
+    uploadZipSub: "Select one or more Facebook ZIP files. Also supports separate E2EE export (messages.zip).",
+    extractingZip: "Extracting ZIP...",
+    extractingZipDesc: "Finding and extracting message JSON files. Skipping photos, videos, and other files.",
     uploadAvatarHint: "Want profile avatars? Save your Facebook friends page (Ctrl+S) and place it in the same folder.",
-    secureTitle: "Secure by default",
-    secureDesc: "Processed entirely in your browser using a Web Worker. No files are uploaded to any server.",
-    mergeTitle: "E2EE message merging",
-    mergeDesc: "Automatically detect and merge chats split by end-to-end encryption or folder chunking.",
-    chartTitle: "Interactive charts",
-    chartDesc: "Visualize message volume over time, hourly activity, day of the week, and monthly timelines.",
+    orDivider: "or",
     scanningTitle: "Scanning directory structure...",
     scanningDesc: "Browser is reading file indexes and classifying conversations.",
     reviewTitle: "Review and merge conversations",
@@ -349,6 +426,7 @@ function App() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportLimit, setExportLimit] = useState(10); // 10 | 20 | 30 | 50 | -1 (all)
   const [isExporting, setIsExporting] = useState(false);
+  const [zipExtracting, setZipExtracting] = useState(false); // ZIP extraction in progress
   const [hideNames, setHideNames] = useState(false);
   const [hideAvatars, setHideAvatars] = useState(false);
   const [hideOverview, setHideOverview] = useState(false);
@@ -857,6 +935,51 @@ function App() {
     workerRef.current.postMessage({
       type: 'SCAN_FILES',
       data: { files: filteredFiles }
+    });
+  };
+
+  // Handler: Selecting ZIP files (fflate streaming — never loads full ZIP into RAM)
+  const handleZipSelect = async (e) => {
+    const zipFiles = Array.from(e.target.files);
+    if (zipFiles.length === 0) return;
+
+    setZipExtracting(true);
+    setScreen('scanning');
+    setScanProgress({ current: 0, total: 0, fileName: lang === 'vi' ? 'Chuẩn bị giải nén...' : 'Preparing to extract...' });
+
+    const allBlobs = [];
+    for (let i = 0; i < zipFiles.length; i++) {
+      const zipFile = zipFiles[i];
+      try {
+        const blobs = await extractJsonsFromZip(zipFile, (extracted, fileName) => {
+          setScanProgress({
+            current: extracted,
+            total: extracted, // total unknown while streaming
+            fileName: `[${i + 1}/${zipFiles.length}] ${zipFile.name} → ${fileName}`
+          });
+        });
+        allBlobs.push(...blobs);
+      } catch (err) {
+        console.error(`Failed to extract ${zipFile.name}:`, err);
+        alert(`${lang === 'vi' ? 'Lỗi khi giải nén' : 'Error extracting'} ${zipFile.name}`);
+      }
+    }
+
+    setZipExtracting(false);
+
+    if (allBlobs.length === 0) {
+      alert(lang === 'vi'
+        ? 'Không tìm thấy file JSON tin nhắn trong các file ZIP đã chọn. Hãy kiểm tra lại các file ZIP.'
+        : 'No message JSON files found in the selected ZIP files. Please check the ZIP files.'
+      );
+      setScreen('landing');
+      return;
+    }
+
+    setScanProgress({ current: 0, total: allBlobs.length, fileName: lang === 'vi' ? 'Đang bắt đầu quét...' : 'Starting scan...' });
+    workerRef.current.postMessage({
+      type: 'SCAN_FILES',
+      data: { files: allBlobs }
     });
   };
 
@@ -1753,34 +1876,52 @@ function App() {
               </div>
             )}
 
-            {/* Folder Select M3 Card */}
-            <div className="w-full max-w-xl mb-12">
-              <label
-                htmlFor="folder-upload"
-                className="flex flex-col items-center justify-center px-8 py-14 rounded-[32px] bg-[#F0F4F9] border border-[#CAC4D0] cursor-pointer group hover:bg-[#E9EEF6] transition-colors"
-              >
-                <div className="p-4 rounded-full bg-[#D3E3FD] text-[#041E49] mb-5">
-                  <FolderOpen className="w-8 h-8 text-[#0B57D0]" />
-                </div>
+            {/* Upload Options: Folder + ZIP */}
+            <div className="w-full max-w-2xl mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                <span className="text-2xl font-bold text-[#1D1B20] mb-2">
-                  {t.uploadTitle}
-                </span>
+                {/* Folder Select Card */}
+                <label
+                  htmlFor="folder-upload"
+                  className="flex flex-col items-center justify-center px-6 py-10 rounded-[32px] bg-[#F0F4F9] border-2 border-[#CAC4D0] cursor-pointer group hover:bg-[#E9EEF6] hover:border-[#0B57D0] transition-all"
+                >
+                  <div className="p-3.5 rounded-full bg-[#D3E3FD] mb-4">
+                    <FolderOpen className="w-7 h-7 text-[#0B57D0]" />
+                  </div>
+                  <span className="text-lg font-bold text-[#1D1B20] mb-1.5 text-center">{t.uploadTitle}</span>
+                  <span className="text-xs text-[#49454F] text-center">{t.uploadSub}</span>
+                  <input
+                    type="file"
+                    id="folder-upload"
+                    webkitdirectory=""
+                    directory=""
+                    multiple
+                    className="hidden"
+                    onChange={handleFolderSelect}
+                  />
+                </label>
 
-                <span className="text-sm text-[#49454F] text-center max-w-sm">
-                  {t.uploadSub}
-                </span>
+                {/* ZIP Select Card */}
+                <label
+                  htmlFor="zip-upload"
+                  className="flex flex-col items-center justify-center px-6 py-10 rounded-[32px] bg-[#F0F4F9] border-2 border-[#CAC4D0] cursor-pointer group hover:bg-[#E9EEF6] hover:border-[#0B57D0] transition-all"
+                >
+                  <div className="p-3.5 rounded-full bg-[#D3E3FD] mb-4">
+                    <FileArchive className="w-7 h-7 text-[#0B57D0]" />
+                  </div>
+                  <span className="text-lg font-bold text-[#1D1B20] mb-1.5 text-center">{t.uploadZipTitle}</span>
+                  <span className="text-xs text-[#49454F] text-center">{t.uploadZipSub}</span>
+                  <input
+                    type="file"
+                    id="zip-upload"
+                    accept=".zip"
+                    multiple
+                    className="hidden"
+                    onChange={handleZipSelect}
+                  />
+                </label>
 
-                <input
-                  type="file"
-                  id="folder-upload"
-                  webkitdirectory=""
-                  directory=""
-                  multiple
-                  className="hidden"
-                  onChange={handleFolderSelect}
-                />
-              </label>
+              </div>
             </div>
 
             {/* Avatar hint */}
