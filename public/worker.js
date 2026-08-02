@@ -456,11 +456,12 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
         continue;
       }
 
-      if (!enabledGroupIdsSet.has(signature)) {
+      const targetGroupId = groupMappings.get(signature) || signature;
+
+      const isEnabled = enabledGroupIdsSet.has(signature) || enabledGroupIdsSet.has(targetGroupId);
+      if (!isEnabled) {
         continue;
       }
-
-      const targetGroupId = groupMappings.get(signature) || signature;
 
       if (!analyticsResults.has(targetGroupId)) {
         let metaTitle = title;

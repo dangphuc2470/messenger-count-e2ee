@@ -1313,13 +1313,21 @@ function App() {
       return;
     }
 
+    const effectiveSelectedIds = new Set(selectedGroups);
+    Object.entries(mergeConfig).forEach(([sourceId, targetId]) => {
+      if (effectiveSelectedIds.has(targetId) || effectiveSelectedIds.has(sourceId)) {
+        effectiveSelectedIds.add(sourceId);
+        effectiveSelectedIds.add(targetId);
+      }
+    });
+
     setScreen('analyzing');
-    setAnalyzeProgress({ currentFile: 0, total: selectedGroups.size, fileName: lang === 'vi' ? 'Khởi tạo phân tích...' : 'Initializing analysis...', processedMessages: 0 });
+    setAnalyzeProgress({ currentFile: 0, total: effectiveSelectedIds.size, fileName: lang === 'vi' ? 'Khởi tạo phân tích...' : 'Initializing analysis...', processedMessages: 0 });
 
     workerRef.current.postMessage({
       type: 'ANALYZE_GROUPS',
       data: {
-        selectedGroupIds: Array.from(selectedGroups),
+        selectedGroupIds: Array.from(effectiveSelectedIds),
         mergeConfig: mergeConfig
       }
     });
@@ -1350,6 +1358,12 @@ function App() {
     rawGroups.forEach(g => {
       if (g.type === typeKey) {
         next.add(g.id);
+      }
+    });
+    // Preserve any configured merge sources mapped to a selected target
+    Object.entries(mergeConfig).forEach(([sourceId, targetId]) => {
+      if (next.has(targetId)) {
+        next.add(sourceId);
       }
     });
     setSelectedGroups(next);
