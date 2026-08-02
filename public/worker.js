@@ -923,6 +923,7 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
 
     if (hasDating || title.includes('Hẹn hò') || title.includes('Dating')) {
       lines.push(`[LƯU Ý / NOTE FOR AI]: Đoạn chat này chứa dữ liệu từ tệp Facebook Dating (dating/messages/*.json). Tệp Facebook Dating gốc CHỈ LƯU DUY NHẤT tin nhắn do bạn gửi đi, HOÀN TOÀN KHÔNG LƯU tin nhắn phản hồi của đối phương.`);
+      lines.push(`[MẸO ĐỒNG BỘ / DATING SYNC TIP]: Cần chọn bấm nút 'Gửi thông tin / Chuyển sang Messenger' trực tiếp từ Facebook Dating thay vì gửi link Profile rồi tự kết bạn nhắn riêng, để Facebook tự động đồng bộ đầy đủ lịch sử chat 2 chiều sang Messenger kèm nhãn 'Đã gửi từ Hẹn hò trên Facebook'.`);
       lines.push(`----------------------------------------`);
     }
 
@@ -1016,7 +1017,7 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
         customMessages.unshift({
           time: customMessages[0].time,
           sender: "System Note",
-          content: "[LƯU Ý / NOTE FOR AI]: Đoạn chat này chứa dữ liệu từ tệp Facebook Dating (dating/messages/*.json). Tệp Facebook Dating gốc CHỈ LƯU DUY NHẤT tin nhắn do bạn gửi đi, HOÀN TOÀN KHÔNG LƯU tin nhắn phản hồi của đối phương."
+          content: "[LƯU Ý / NOTE FOR AI]: Đoạn chat này chứa dữ liệu từ tệp Facebook Dating (dating/messages/*.json). Tệp Facebook Dating gốc CHỈ LƯU DUY NHẤT tin nhắn do bạn gửi đi, HOÀN TOÀN KHÔNG LƯU tin nhắn phản hồi của đối phương. (Mẹo: Cần bấm nút 'Gửi thông tin / Chuyển sang Messenger' trực tiếp từ Facebook Dating để Facebook tự động đồng bộ đầy đủ lịch sử chat 2 chiều sang Messenger)."
         });
         customMessages.push({
           time: customMessages[customMessages.length - 1].time,
@@ -1031,7 +1032,7 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
     outputObj = {
       title: title,
       participants: participantsList,
-      ...(hasDating ? { dating_note: "Đoạn chat này chứa dữ liệu từ tệp Facebook Dating (dating/messages/*.json). Tệp Facebook Dating gốc CHỈ LƯU DUY NHẤT tin nhắn do bạn gửi đi, HOÀN TOÀN KHÔNG LƯU tin nhắn phản hồi của đối phương." } : {}),
+      ...(hasDating ? { dating_note: "Đoạn chat này chứa dữ liệu từ tệp Facebook Dating (dating/messages/*.json). Tệp Facebook Dating gốc CHỈ LƯU DUY NHẤT tin nhắn do bạn gửi đi, HOÀN TOÀN KHÔNG LƯU tin nhắn phản hồi của đối phương. (Mẹo: Cần bấm nút 'Gửi thông tin / Chuyển sang Messenger' trực tiếp từ Facebook Dating để Facebook tự động đồng bộ đầy đủ lịch sử chat 2 chiều sang Messenger)." } : {}),
       messages: customMessages
     };
 

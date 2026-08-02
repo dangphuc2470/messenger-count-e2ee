@@ -4119,7 +4119,7 @@ function App() {
                 </div>
                 <div>
                   <h3 className="text-xl font-extrabold text-[#1D1B20]">
-                    {lang === 'vi' ? 'Nhận diện & Gộp liên hệ Hẹn hò / Chưa rõ tên' : 'Identify & Merge Dating / Anonymous Contacts'}
+                    {lang === 'vi' ? 'Nhận diện và Gộp liên hệ Hẹn hò / Chưa rõ tên' : 'Identify and Merge Dating / Anonymous Contacts'}
                   </h3>
                   <p className="text-xs text-[#49454F] mt-0.5">
                     {lang === 'vi'
@@ -4134,6 +4134,15 @@ function App() {
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+            {/* Dating Sync Tip Banner */}
+            <div className="mt-3 p-3 rounded-2xl bg-[#D3E3FD]/30 border border-[#0B57D0]/30 text-xs text-[#041E49] flex items-start gap-2.5 font-sans">
+              <Info className="w-4 h-4 text-[#0B57D0] shrink-0 mt-0.5" />
+              <p className="leading-relaxed">
+                {lang === 'vi'
+                  ? 'Mẹo đồng bộ Dating: Khi dùng Facebook Dating, bạn nên chọn nút Gửi thông tin / Chuyển sang Messenger trực tiếp trong Dating thay vì gửi link Profile rồi tự nhắn riêng. Việc này sẽ giúp Facebook tự động lưu và đồng bộ đầy đủ lịch sử chat 2 chiều vào Messenger.'
+                  : 'Dating Sync Tip: Click Send info / Switch to Messenger directly inside Dating instead of sending profile links to automatically sync full 2-way chat history into Messenger.'}
+              </p>
             </div>
 
             {/* Modal List Body */}
@@ -4262,7 +4271,7 @@ function App() {
                 }}
                 className="px-6 py-2.5 rounded-full bg-[#0B57D0] hover:bg-[#0842A0] text-white font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
               >
-                <span>{lang === 'vi' ? 'Xác nhận & Bắt đầu phân tích' : 'Confirm & Start Analysis'}</span>
+                <span>{lang === 'vi' ? 'Xác nhận và Bắt đầu phân tích' : 'Confirm and Start Analysis'}</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
