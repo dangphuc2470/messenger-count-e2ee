@@ -922,7 +922,7 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
     ];
 
     if (hasDating || title.includes('Hẹn hò') || title.includes('Dating')) {
-      lines.push(`[LƯU Ý / NOTE FOR AI]: Đoạn chat này chứa dữ liệu từ Facebook Dating (dating/messages/*.json). Tệp Facebook Dating gốc chỉ lưu nội dung lời nhắn, không ghi tên người gửi (sender_name) cho từng câu.`);
+      lines.push(`[LƯU Ý / NOTE FOR AI]: Đoạn chat này chứa dữ liệu từ tệp Facebook Dating (dating/messages/*.json). Tệp Facebook Dating gốc CHỈ LƯU DUY NHẤT tin nhắn do bạn gửi đi, HOÀN TOÀN KHÔNG LƯU tin nhắn phản hồi của đối phương.`);
       lines.push(`----------------------------------------`);
     }
 
@@ -941,7 +941,7 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
 
     if (hasDating || title.includes('Hẹn hò') || title.includes('Dating')) {
       lines.push(`----------------------------------------`);
-      lines.push(`[LƯU Ý KẾT THÚC / END NOTE FOR AI]: Kết thúc dữ liệu từ Facebook Dating.`);
+      lines.push(`[LƯU Ý KẾT THÚC / END NOTE FOR AI]: Kết thúc đoạn tin nhắn từ Facebook Dating.`);
     }
 
     self.postMessage({
@@ -1016,12 +1016,12 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
         customMessages.unshift({
           time: customMessages[0].time,
           sender: "System Note",
-          content: "[LƯU Ý / NOTE FOR AI]: Đoạn chat này chứa dữ liệu từ Facebook Dating (dating/messages/*.json). Tệp Facebook Dating gốc chỉ lưu nội dung lời nhắn, không ghi tên người gửi (sender_name) cho từng câu."
+          content: "[LƯU Ý / NOTE FOR AI]: Đoạn chat này chứa dữ liệu từ tệp Facebook Dating (dating/messages/*.json). Tệp Facebook Dating gốc CHỈ LƯU DUY NHẤT tin nhắn do bạn gửi đi, HOÀN TOÀN KHÔNG LƯU tin nhắn phản hồi của đối phương."
         });
         customMessages.push({
           time: customMessages[customMessages.length - 1].time,
           sender: "System Note",
-          content: "[LƯU Ý KẾT THÚC / END NOTE FOR AI]: Kết thúc dữ liệu từ Facebook Dating."
+          content: "[LƯU Ý KẾT THÚC / END NOTE FOR AI]: Kết thúc đoạn tin nhắn từ Facebook Dating."
         });
       }
     }
@@ -1031,7 +1031,7 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
     outputObj = {
       title: title,
       participants: participantsList,
-      ...(hasDating ? { dating_note: "Đoạn chat này chứa dữ liệu từ Facebook Dating (dating/messages/*.json). Tệp Facebook Dating gốc chỉ lưu nội dung lời nhắn, không ghi tên người gửi (sender_name) cho từng câu." } : {}),
+      ...(hasDating ? { dating_note: "Đoạn chat này chứa dữ liệu từ tệp Facebook Dating (dating/messages/*.json). Tệp Facebook Dating gốc CHỈ LƯU DUY NHẤT tin nhắn do bạn gửi đi, HOÀN TOÀN KHÔNG LƯU tin nhắn phản hồi của đối phương." } : {}),
       messages: customMessages
     };
 
