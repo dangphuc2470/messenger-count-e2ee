@@ -4262,17 +4262,13 @@ function App() {
                 onClick={() => setShowAmbiguousModal(false)}
                 className="px-5 py-2.5 rounded-full border border-[#79747E] text-[#49454F] hover:bg-[#E9EEF6] font-bold text-xs transition-colors cursor-pointer"
               >
-                {lang === 'vi' ? 'Bỏ qua (Giữ riêng)' : 'Skip'}
+                {lang === 'vi' ? 'Bỏ qua' : 'Skip'}
               </button>
               <button
-                onClick={() => {
-                  setShowAmbiguousModal(false);
-                  handleStartAnalysis();
-                }}
+                onClick={() => setShowAmbiguousModal(false)}
                 className="px-6 py-2.5 rounded-full bg-[#0B57D0] hover:bg-[#0842A0] text-white font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
               >
-                <span>{lang === 'vi' ? 'Xác nhận và Bắt đầu phân tích' : 'Confirm and Start Analysis'}</span>
-                <ChevronRight className="w-4 h-4" />
+                <span>{lang === 'vi' ? 'Xác nhận gộp' : 'Confirm Merges'}</span>
               </button>
             </div>
 
