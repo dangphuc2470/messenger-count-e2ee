@@ -3734,9 +3734,8 @@ function App() {
                   ref={chatContainerRef}
                   className="p-5 h-[400px] overflow-y-auto flex flex-col gap-4 bg-white"
                 >
-                  {/* Load more button */}
-                  {/* Load more button (At top for Oldest First) */}
-                  {chatSortOrder === 'oldest' && selectedGroupDetails.messagesList.length > visibleMessageCount && (
+                  {/* Load older messages button at top when Newest first */}
+                  {chatSortOrder === 'newest' && selectedGroupDetails.messagesList.length > visibleMessageCount && (
                     <button
                       onClick={() => setVisibleMessageCount(prev => prev + 250)}
                       className="self-center px-4 py-2 text-xs font-bold text-[#0B57D0] bg-[#D3E3FD] hover:bg-[#C2D9FC] rounded-full transition-colors flex items-center gap-1.5 cursor-pointer shadow border border-[#CAC4D0] mb-2"
@@ -3750,13 +3749,10 @@ function App() {
                     <div className="text-center py-12 text-sm text-[#49454F] italic">{t.noMessages}</div>
                   ) : (
                     (() => {
-                      const sortedMessages = [...selectedGroupDetails.messagesList];
-                      if (chatSortOrder === 'newest') {
-                        sortedMessages.reverse();
-                      }
+                      // Always slice and display in natural top-down chronological order
                       const slicedMessages = chatSortOrder === 'newest'
-                        ? sortedMessages.slice(0, visibleMessageCount)
-                        : sortedMessages.slice(-visibleMessageCount);
+                        ? selectedGroupDetails.messagesList.slice(-visibleMessageCount)
+                        : selectedGroupDetails.messagesList.slice(0, visibleMessageCount);
 
                       return slicedMessages.map((msg, index) => {
                         if (msg.isReaction) {
@@ -3810,14 +3806,14 @@ function App() {
                     })()
                   )}
 
-                  {/* Load more button (At bottom for Newest First) */}
-                  {chatSortOrder === 'newest' && selectedGroupDetails.messagesList.length > visibleMessageCount && (
+                  {/* Load newer messages button at bottom when Oldest first */}
+                  {chatSortOrder === 'oldest' && selectedGroupDetails.messagesList.length > visibleMessageCount && (
                     <button
                       onClick={() => setVisibleMessageCount(prev => prev + 250)}
                       className="self-center px-4 py-2 text-xs font-bold text-[#0B57D0] bg-[#D3E3FD] hover:bg-[#C2D9FC] rounded-full transition-colors flex items-center gap-1.5 cursor-pointer shadow border border-[#CAC4D0] mt-2"
                     >
                       <ChevronDown className="w-3.5 h-3.5" />
-                      <span>{t.btnOlderMsgs(selectedGroupDetails.messagesList.length - visibleMessageCount)}</span>
+                      <span>{lang === 'vi' ? `Xem tin nhắn mới hơn (còn ${(selectedGroupDetails.messagesList.length - visibleMessageCount).toLocaleString()} tin)` : `Load newer messages (${(selectedGroupDetails.messagesList.length - visibleMessageCount).toLocaleString()} left)`}</span>
                     </button>
                   )}
                 </div>
