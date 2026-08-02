@@ -5,7 +5,7 @@ import {
   FolderOpen, Calendar, Image, FileText, ChevronRight,
   Search, ArrowUpDown, X, Loader2, Info, ArrowLeft, RefreshCw,
   Clock, Award, MessageCircle, Sparkles, ChevronDown, Download, User,
-  LayoutGrid, List, FileArchive
+  LayoutGrid, List, FileArchive, Heart
 } from 'lucide-react';
 import { Chart, registerables } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
@@ -442,6 +442,9 @@ function App() {
   // Leaderboard JSON Export States
   const [jsonIncludeOverview, setJsonIncludeOverview] = useState(true);
   const [jsonIncludeTimeline, setJsonIncludeTimeline] = useState(false);
+
+  // Merge Review Configuration State
+  const [mergeConfig, setMergeConfig] = useState({}); // Maps dating/custom group IDs to target messenger DM group IDs
 
   // Detail Modal Export States
   const [showDetailExportMenu, setShowDetailExportMenu] = useState(false);
@@ -1289,7 +1292,7 @@ function App() {
       type: 'ANALYZE_GROUPS',
       data: {
         selectedGroupIds: Array.from(selectedGroups),
-        mergeConfig: {}
+        mergeConfig: mergeConfig
       }
     });
   };

@@ -70,7 +70,7 @@ const PERSONAL_REACTION_PREFIXES = [
   /^(B\u00e1\u00ba\u00a1n|B\u00e1\xba\xa1n)\s/i,
 ];
 
-const UNKNOWN_SENDER = 'Unknown';
+const UNKNOWN_SENDER = 'Người dùng Facebook';
 const DATING_SELF_LABEL = 'Bạn';
 
 const MEDIA_TYPES = {
@@ -253,6 +253,7 @@ async function scanFiles(files) {
   }
 
   const sortedGroups = Array.from(groupsMap.values()).sort((a, b) => b.totalMessages - a.totalMessages);
+  scannedGroupsCache = sortedGroups;
 
   self.postMessage({
     type: 'SCAN_COMPLETE',
@@ -408,7 +409,18 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
       const targetGroupId = groupMappings.get(signature) || signature;
 
       if (!analyticsResults.has(targetGroupId)) {
-        analyticsResults.set(targetGroupId, initStatsGroup(targetGroupId, title, type, participants));
+        let metaTitle = title;
+        let metaType = type;
+        let metaParticipants = participants;
+
+        const targetMeta = scannedGroupsCache.find(g => g.id === targetGroupId);
+        if (targetMeta) {
+          metaTitle = targetMeta.title;
+          metaType = targetMeta.type;
+          metaParticipants = targetMeta.participants;
+        }
+
+        analyticsResults.set(targetGroupId, initStatsGroup(targetGroupId, metaTitle, metaType, metaParticipants));
       }
 
       const stats = analyticsResults.get(targetGroupId);
@@ -437,13 +449,11 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
         
         // 1. Sender
         let sender = UNKNOWN_SENDER;
-        if (isStandard) {
-          const rawSender = msg.sender_name || msg.senderName;
-          if (rawSender) {
-            sender = decodeFBString(rawSender);
-          }
+        const rawSender = msg.sender_name || msg.senderName || msg.sender;
+        if (rawSender) {
+          sender = decodeFBString(rawSender);
         } else if (isDating) {
-          sender = title; 
+          sender = title;
         }
 
         // 2. Timestamp
