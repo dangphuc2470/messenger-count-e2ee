@@ -858,6 +858,8 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
   const messages = [];
   const participantsSet = new Set();
 
+  let hasDating = false;
+
   if (storedFiles.length > 0 && Array.isArray(fileIndices)) {
     for (const fileIndex of fileIndices) {
       const file = storedFiles[fileIndex];
@@ -866,6 +868,10 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
       try {
         const text = await file.text();
         const json = JSON.parse(text);
+
+        if (json.recipient && Array.isArray(json.messages)) {
+          hasDating = true;
+        }
 
         if (Array.isArray(json.participants)) {
           for (const p of json.participants) {
@@ -915,6 +921,11 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
       `----------------------------------------`
     ];
 
+    if (hasDating || title.includes('Hẹn hò') || title.includes('Dating')) {
+      lines.push(`[LƯU Ý / NOTE FOR AI]: Đoạn chat này chứa dữ liệu từ Facebook Dating (dating/messages/*.json). Tệp Facebook Dating gốc chỉ lưu nội dung lời nhắn, không ghi tên người gửi (sender_name) cho từng câu.`);
+      lines.push(`----------------------------------------`);
+    }
+
     for (const msg of sorted) {
       const contentStr = msg.content || msg.text || msg.body || '';
       const decodedContent = contentStr ? decodeFBString(contentStr) : '';
@@ -926,6 +937,11 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
 
       const timeStr = formatTimestampToReadable(timestampMs);
       lines.push(`[${timeStr}] ${sender}: ${decodedContent}`);
+    }
+
+    if (hasDating || title.includes('Hẹn hò') || title.includes('Dating')) {
+      lines.push(`----------------------------------------`);
+      lines.push(`[LƯU Ý KẾT THÚC / END NOTE FOR AI]: Kết thúc dữ liệu từ Facebook Dating.`);
     }
 
     self.postMessage({
@@ -995,11 +1011,27 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
 
     customMessages.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
 
+    if (hasDating || title.includes('Hẹn hò') || title.includes('Dating')) {
+      if (customMessages.length > 0) {
+        customMessages.unshift({
+          time: customMessages[0].time,
+          sender: "System Note",
+          content: "[LƯU Ý / NOTE FOR AI]: Đoạn chat này chứa dữ liệu từ Facebook Dating (dating/messages/*.json). Tệp Facebook Dating gốc chỉ lưu nội dung lời nhắn, không ghi tên người gửi (sender_name) cho từng câu."
+        });
+        customMessages.push({
+          time: customMessages[customMessages.length - 1].time,
+          sender: "System Note",
+          content: "[LƯU Ý KẾT THÚC / END NOTE FOR AI]: Kết thúc dữ liệu từ Facebook Dating."
+        });
+      }
+    }
+
     const participantsList = participantsSet.size > 0 ? Array.from(participantsSet) : (fallbackParticipants || []);
 
     outputObj = {
       title: title,
       participants: participantsList,
+      ...(hasDating ? { dating_note: "Đoạn chat này chứa dữ liệu từ Facebook Dating (dating/messages/*.json). Tệp Facebook Dating gốc chỉ lưu nội dung lời nhắn, không ghi tên người gửi (sender_name) cho từng câu." } : {}),
       messages: customMessages
     };
 
