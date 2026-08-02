@@ -18,33 +18,27 @@ Chart.register(...registerables, zoomPlugin);
 // ─── ZIP Streaming Helper ─────────────────────────────────────────────────────
 // Streams a ZIP file entry-by-entry using fflate, extracting only matching JSON files.
 // Never loads the full ZIP into RAM — processes in 64KB chunks via ReadableStream.
-const MESSAGE_FILE_REGEX = /(messages[\/\\](inbox|e2ee_cutover|archived_threads|message_requests|filtered_threads|extracted)?[\/\\]|dating[\/\\]messages[\/\\]).*\.json$/i;
+const EXCLUDED_JSON_REGEX = /(package(-lock)?|manifest|tsconfig|eslint|babel|vite)\.json$/i;
+
+function isCandidateMessageJson(name) {
+  if (!name || !name.endsWith('.json')) return false;
+  const fileName = name.split(/[\/\\]/).pop();
+  if (EXCLUDED_JSON_REGEX.test(fileName)) return false;
+  return true;
+}
 
 function extractJsonsFromZip(zipFile, onProgress) {
   return new Promise((resolve, reject) => {
     const blobs = [];
     let entryCount = 0;
-    let zipType = null; // 'facebook' | 'e2ee_flat'
 
     const unzipper = new Unzip((stream) => {
       const name = stream.name;
       entryCount++;
 
-      // Detect ZIP type from first entries
-      if (zipType === null) {
-        if (name.startsWith('your_facebook_activity/') || MESSAGE_FILE_REGEX.test(name)) {
-          zipType = 'facebook';
-        } else if (!name.includes('/') && name.endsWith('.json')) {
-          zipType = 'e2ee_flat';
-        }
-      }
+      if (!isCandidateMessageJson(name)) return; // skip non-json or meta json files
 
-      const isFacebookJson = zipType === 'facebook' && MESSAGE_FILE_REGEX.test(name);
-      // e2ee_flat: root-level .json files (no slash in name)
-      const isE2EEFlatJson = (zipType === 'e2ee_flat' || zipType === null) && !name.includes('/') && name.endsWith('.json');
-
-      if (!isFacebookJson && !isE2EEFlatJson) return; // skip — don't decompress
-
+      const isRootFlatJson = !name.includes('/');
       const chunks = [];
       stream.ondata = (err, data, final) => {
         if (err) return;
@@ -56,8 +50,8 @@ function extractJsonsFromZip(zipFile, onProgress) {
           for (const c of chunks) { merged.set(c, offset); offset += c.length; }
 
           const fileName = name.split('/').pop();
-          // E2EE flat files get a virtual path so the worker's E2EE detection works
-          const virtualPath = isE2EEFlatJson ? `messages/extracted/${fileName}` : name;
+          // Root flat files get a virtual path so the worker's E2EE detection works
+          const virtualPath = isRootFlatJson ? `messages/extracted/${fileName}` : name;
           // Use File (not Blob) — File.name is preserved in postMessage structured clone;
           // Blob custom properties set via Object.defineProperty are NOT.
           // Worker uses `file.webkitRelativePath || file.name` so full path as name works.
@@ -464,9 +458,11 @@ function App() {
 
   const exportAreaRef = useRef(null);
   const zipAvatarFilesRef = useRef([]); // HTML + images for avatar parsing in ZIP mode
+  const pendingAvatarHtmlRef = useRef(null); // Prevents React state stale closure when chaining file/folder pickers
   const [zipAvatarHtmlFile, setZipAvatarHtmlFile] = useState(null);
   const [zipAvatarImgCount, setZipAvatarImgCount] = useState(0);
   const [zipAvatarFolderName, setZipAvatarFolderName] = useState('');
+  const [showAvatarUploadSection, setShowAvatarUploadSection] = useState(false);
 
   // Web Worker Reference
   const workerRef = useRef(null);
@@ -788,11 +784,19 @@ function App() {
   };
 
   const handleDownloadDetailJsonComplete = (data) => {
-    const { title, jsonContent, format } = data;
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(jsonContent, null, 2));
+    const { title, jsonContent, textContent, format } = data;
+    const sanitizedTitle = title.replace(/[/\\:*?"<>|]/g, '').replace(/\s+/g, '_');
+
     const link = document.createElement('a');
-    link.download = `${title.replace(/[/\\:*?"<>|]/g, '').replace(/\s+/g, '_')}_messages_${format}.json`;
-    link.href = dataStr;
+    if (format === 'plain_text') {
+      const dataStr = "data:text/plain;charset=utf-8," + encodeURIComponent(textContent || '');
+      link.download = `${sanitizedTitle}_messages_plain_text.txt`;
+      link.href = dataStr;
+    } else {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(jsonContent, null, 2));
+      link.download = `${sanitizedTitle}_messages_${format}.json`;
+      link.href = dataStr;
+    }
     link.click();
     setIsExportingDetailJson(false);
     setShowDetailExportMenu(false);
@@ -970,69 +974,98 @@ function App() {
       const parser = new DOMParser();
       const doc = parser.parseFromString(htmlText, 'text/html');
 
-      // Build a quick lookup: image filename → File object
+      // Build a quick lookup: image filename (raw & decoded) → File object
       const imageFileMap = {};
       imageFiles.forEach(f => {
         imageFileMap[f.name] = f;
+        try {
+          imageFileMap[decodeURIComponent(f.name)] = f;
+        } catch (_) {}
       });
 
       const result = {};
-      const profileRegex = /^https:\/\/www\.facebook\.com\/([^?#]+|profile\.php\?id=\d+)/;
-
-      // Collect profileId → { img filename, name }
       const profileMap = {};
 
-      // Scan all anchors
+      const getProfileId = (href) => {
+        if (!href) return null;
+        // Strip domain if absolute
+        let path = href.replace(/^https?:\/\/(www\.|m\.)?facebook\.com/i, '');
+        if (!path.startsWith('/')) return null;
+
+        // Ignore non-profile Facebook system endpoints
+        if (path.match(/^\/(friends|watch|marketplace|groups|gaming|events|saved|memories|messages|help|settings|policies|legal|notifications|stories|bookmarks|pages|ads|login|dialog|sharer)(\/|\?|#|$)/i)) {
+          return null;
+        }
+
+        // Profile PHP format: /profile.php?id=100012345678
+        const phpMatch = path.match(/\/profile\.php\?id=(\d+)/i);
+        if (phpMatch) return `profile.php?id=${phpMatch[1]}`;
+
+        // Standard profile handle: /john.doe or /phuc.dang.123
+        const userMatch = path.match(/^\/([a-zA-Z0-9\._]+)(\?|#|$)/);
+        if (userMatch && userMatch[1] && userMatch[1] !== 'index.php') {
+          return userMatch[1];
+        }
+
+        return null;
+      };
+
+      // Scan all anchors in document
       const anchors = doc.querySelectorAll('a[href]');
       anchors.forEach(a => {
         const href = a.getAttribute('href') || '';
-        const match = profileRegex.exec(href);
-        if (!match) return;
-        const profileId = match[1];
+        const profileId = getProfileId(href);
+        if (!profileId) return;
 
         if (!profileMap[profileId]) profileMap[profileId] = { img: null, name: null };
         const info = profileMap[profileId];
 
-        // Check for image inside this anchor
-        const img = a.querySelector('img[src]');
-        if (img && !info.img) {
-          const src = img.getAttribute('src') || '';
-          // Extract just the filename part
-          const filename = src.split('/').pop().split('?')[0];
-          if (filename && imageFileMap[filename]) {
-            info.img = filename;
+        // Check for <img> or SVG <image> inside anchor
+        if (!info.img) {
+          const imgEl = a.querySelector('img[src], image[href], image[xlink\\:href]');
+          if (imgEl) {
+            const rawSrc = imgEl.getAttribute('src') || imgEl.getAttribute('href') || imgEl.getAttribute('xlink:href') || '';
+            if (rawSrc) {
+              const filename = rawSrc.split('/').pop().split('?')[0];
+              let decodedName = filename;
+              try { decodedName = decodeURIComponent(filename); } catch (_) {}
+
+              const matchedFile = imageFileMap[filename] || imageFileMap[decodedName];
+              if (matchedFile) {
+                info.img = matchedFile;
+              }
+            }
           }
         }
 
-        // Check for name text
+        // Check for friend name text
         if (!info.name) {
           const spanDir = a.querySelector('[dir="auto"]');
           if (spanDir && spanDir.textContent.trim()) {
             info.name = spanDir.textContent.trim();
           } else {
             const txt = a.textContent.replace(/\s+/g, ' ').trim();
-            if (txt && !txt.startsWith('http') && txt.length < 100) {
+            if (txt && !txt.startsWith('http') && txt.length > 1 && txt.length < 100) {
               info.name = txt;
             }
           }
         }
       });
 
-      // Build blob URL map
+      // Build blob URLs for all matched friends
       const newBlobUrls = [];
       for (const [profileId, info] of Object.entries(profileMap)) {
         if (!info.name) continue;
         let blobUrl = null;
         let rawBlob = null;
-        if (info.img && imageFileMap[info.img]) {
-          const file = imageFileMap[info.img];
+        if (info.img) {
           try {
-            const arrayBuffer = await file.arrayBuffer();
-            rawBlob = new Blob([arrayBuffer], { type: file.type });
+            const arrayBuffer = await info.img.arrayBuffer();
+            rawBlob = new Blob([arrayBuffer], { type: info.img.type });
             blobUrl = URL.createObjectURL(rawBlob);
             newBlobUrls.push(blobUrl);
           } catch (e) {
-            console.error('Failed to read image file into blob', e);
+            console.error('Failed to create blob for image', e);
           }
         }
         result[info.name] = {
@@ -1042,7 +1075,7 @@ function App() {
         };
       }
 
-      // Cleanup old blob URLs
+      // Cleanup previous blob URLs
       blobUrlsRef.current.forEach(u => URL.revokeObjectURL(u));
       blobUrlsRef.current = newBlobUrls;
 
@@ -1097,6 +1130,49 @@ function App() {
     }
   };
 
+  // Dashboard avatar upload handlers
+  const handleDashboardAvatarHtmlSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    pendingAvatarHtmlRef.current = file;
+    setZipAvatarHtmlFile(file);
+    const folderInput = document.getElementById('dashboard-avatar-folder-input');
+    if (folderInput) {
+      folderInput.click();
+    }
+  };
+
+  const handleDashboardAvatarFolderSelect = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    const htmlFiles = files.filter(f => f.name.endsWith('.html') || f.name.endsWith('.htm'));
+    const imageFiles = files.filter(f => /\.(jpe?g|png|gif|webp)$/i.test(f.name));
+
+    let htmlFileToUse = htmlFiles.length > 0 ? htmlFiles[0] : (pendingAvatarHtmlRef.current || zipAvatarHtmlFile);
+
+    if (htmlFileToUse && imageFiles.length > 0) {
+      const parsed = await parseFacebookFriendsHtml(htmlFileToUse, imageFiles);
+      if (parsed && Object.keys(parsed).length > 0) {
+        setDynamicAvatarMap(parsed);
+        alert(lang === 'vi' 
+          ? `Đã nạp thành công ${Object.keys(parsed).length} ảnh đại diện bạn bè!` 
+          : `Successfully loaded ${Object.keys(parsed).length} profile avatars!`
+        );
+      } else {
+        alert(lang === 'vi'
+          ? 'Không tìm thấy ảnh đại diện tương ứng trong tệp HTML/thư mục này.'
+          : 'No matching profile avatars found in this HTML/folder.'
+        );
+      }
+    } else if (imageFiles.length > 0 && !htmlFileToUse) {
+      alert(lang === 'vi'
+        ? 'Vui lòng chọn thư mục chứa cả tệp .html bạn bè (hoặc chọn tệp HTML trước).'
+        : 'Please select the folder containing the friends .html file.'
+      );
+    }
+  };
+
   // Handler: Selecting folder
   const handleFolderSelect = async (e) => {
     const files = Array.from(e.target.files);
@@ -1116,9 +1192,8 @@ function App() {
       });
     }
 
-    // Filter JSON files containing messages / dating
-    const messageFileRegex = /(messages[\/\\](inbox|e2ee_cutover|archived_threads|message_requests|filtered_threads|extracted)?[\/\\]|dating[\/\\]messages[\/\\]).*\.json$/i;
-    const filteredFiles = files.filter(f => messageFileRegex.test(f.webkitRelativePath || f.name));
+    // Filter JSON files containing messages / dating (supports any custom folder structure like F:\P\Project\MessengerCount\Data)
+    const filteredFiles = files.filter(f => isCandidateMessageJson(f.webkitRelativePath || f.name));
 
     if (filteredFiles.length === 0) {
       alert(lang === 'vi'
@@ -2090,8 +2165,47 @@ function App() {
               </div>
             )}
 
+            {/* Download Facebook Data Quick Links */}
+            <div className="w-full max-w-2xl mb-6 p-4.5 rounded-2xl bg-[#E9EEF6] border border-[#ADCCF9] text-left flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-[#D3E3FD] text-[#0B57D0] shrink-0">
+                  <Download className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-[#1D1B20]">
+                    {lang === 'vi' ? 'Chưa có file dữ liệu tin nhắn Facebook?' : 'Don\'t have your Facebook data yet?'}
+                  </h4>
+                  <p className="text-[11px] text-[#49454F]">
+                    {lang === 'vi' ? 'Mở trang chính thức của Facebook để gửi yêu cầu tải dữ liệu tệp JSON' : 'Open Facebook official pages to request and download JSON data'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 pt-1 sm:pt-0">
+                <a
+                  href="https://accountscenter.facebook.com/info_and_permissions/dyi"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#0B57D0] hover:bg-[#0842A0] text-white text-xs font-semibold transition-all shadow-sm"
+                  title="Facebook Accounts Center - Download Your Information"
+                >
+                  <span>{lang === 'vi' ? 'Tin nhắn thường' : 'Normal Messages'}</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </a>
+                <a
+                  href="https://www.facebook.com/secure_storage/dyi"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-[#F0F4F9] text-[#0B57D0] border border-[#0B57D0] text-xs font-semibold transition-all"
+                  title="Facebook Secure Storage - E2EE Messages"
+                >
+                  <span>{lang === 'vi' ? 'Tin nhắn E2EE' : 'E2EE Messages'}</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+
             {/* Upload Options: Folder + ZIP */}
-            <div className="w-full max-w-2xl mb-8">
+            <div className="w-full max-w-2xl mb-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 {/* Folder Select Card */}
@@ -2139,98 +2253,123 @@ function App() {
 
             </div>{/* end w-full max-w-2xl container */}
 
-            {/* Avatar files for ZIP mode (optional) */}
-            <div className="w-full max-w-2xl mb-8 -mt-4">
-              <div className="flex flex-col gap-3 px-5 py-3.5 rounded-2xl bg-[#F0F4F9] border border-dashed border-[#CAC4D0] w-full text-left">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-full bg-[#D3E3FD] shrink-0">
-                    <User className="w-4 h-4 text-[#0B57D0]" />
+            {/* Avatar files for ZIP mode (optional) - Collapsible with Toggle */}
+            <div className="w-full max-w-2xl mb-8">
+              <div className="flex flex-col px-5 py-3.5 rounded-2xl bg-[#F0F4F9] border border-[#CAC4D0] w-full text-left transition-all">
+                {/* Toggle Header Row */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-[#D3E3FD] shrink-0">
+                      <User className="w-4 h-4 text-[#0B57D0]" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-[#1D1B20]">
+                        {lang === 'vi' ? 'Nạp ảnh đại diện (tùy chọn)' : 'Load profile avatars (optional)'}
+                      </p>
+                      <p className="text-[11px] text-[#49454F]">
+                        {lang === 'vi'
+                          ? 'Bật để nạp ảnh đại diện từ trang danh sách bạn bè HTML'
+                          : 'Toggle to import profile avatars from saved friends HTML page'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-[#1D1B20]">
-                      {lang === 'vi' ? 'Ảnh đại diện (tùy chọn)' : 'Profile avatars (optional)'}
-                    </p>
-                    <p className="text-[10px] text-[#49454F] leading-normal">
+
+                  {/* Toggle Switch */}
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={showAvatarUploadSection || !!zipAvatarHtmlFile || zipAvatarImgCount > 0}
+                      onChange={(e) => setShowAvatarUploadSection(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-[#E1E2EC] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0B57D0]"></div>
+                  </label>
+                </div>
+
+                {/* Collapsible Content */}
+                {(showAvatarUploadSection || zipAvatarHtmlFile || zipAvatarImgCount > 0) && (
+                  <div className="pt-3.5 mt-3.5 border-t border-[#CAC4D0]/50 flex flex-col gap-3">
+                    <p className="text-[11px] text-[#49454F] leading-normal">
                       {lang === 'vi'
                         ? 'Chọn file HTML bạn bè để tự động yêu cầu chọn thư mục ảnh tương ứng.'
                         : 'Select friends HTML file to auto-prompt for the companion image folder.'}
                     </p>
-                    <p className="text-[10px] text-[#6750A4] font-medium leading-normal mt-0.5">
+                    <p className="text-[11px] text-[#6750A4] font-medium leading-normal">
                       {lang === 'vi'
                         ? '💡 Mẹo: Nhấn Ctrl+S trên trang bạn bè Facebook để tải file HTML này và thư mục ảnh tương ứng về máy (hoặc nếu dùng chọn thư mục ở trên, bạn chỉ cần ném luôn tệp HTML và thư mục ảnh này vào chung thư mục là xong).'
                         : '💡 Tip: Press Ctrl+S on Facebook friends page to save it (HTML file + image folder). If using the folder selector above, simply place the HTML file and image folder inside that folder.'}
                     </p>
+
+                    {/* Action Rows */}
+                    <div className="flex flex-wrap items-center gap-3 mt-1">
+                      {/* HTML File Button */}
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('zip-avatar-html-upload').click()}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                          zipAvatarHtmlFile 
+                            ? 'bg-[#E8F0FE] text-[#0B57D0] border border-[#ADCCF9]' 
+                            : 'bg-white text-[#49454F] border border-[#CAC4D0] hover:bg-[#E9EEF6]'
+                        }`}
+                      >
+                        {zipAvatarHtmlFile ? `📄 ${zipAvatarHtmlFile.name}` : (lang === 'vi' ? 'Chọn file HTML...' : 'Select HTML file...')}
+                      </button>
+
+                      {/* Folder / Images Button */}
+                      <button
+                        type="button"
+                        disabled={!zipAvatarHtmlFile}
+                        onClick={() => document.getElementById('zip-avatar-folder-upload').click()}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                          zipAvatarImgCount > 0 
+                            ? 'bg-[#E8F0FE] text-[#0B57D0] border border-[#ADCCF9]' 
+                            : 'bg-white text-[#49454F] border border-[#CAC4D0] hover:bg-[#E9EEF6]'
+                        }`}
+                      >
+                        {zipAvatarImgCount > 0 
+                          ? `📁 ${zipAvatarFolderName} (${zipAvatarImgCount} ${lang === 'vi' ? 'ảnh' : 'images'})` 
+                          : (lang === 'vi' 
+                              ? (zipAvatarHtmlFile ? `Chọn thư mục ${zipAvatarFolderName}...` : 'Chọn thư mục ảnh...') 
+                              : (zipAvatarHtmlFile ? `Select ${zipAvatarFolderName} folder...` : 'Select image folder...'))}
+                      </button>
+
+                      {/* Reset Button */}
+                      {(zipAvatarHtmlFile || zipAvatarImgCount > 0) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setZipAvatarHtmlFile(null);
+                            setZipAvatarImgCount(0);
+                            setZipAvatarFolderName('');
+                            zipAvatarFilesRef.current = [];
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors cursor-pointer"
+                          title={lang === 'vi' ? 'Xóa chọn' : 'Clear selection'}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Hidden inputs */}
+                    <input
+                      type="file"
+                      id="zip-avatar-html-upload"
+                      accept=".html,.htm"
+                      className="hidden"
+                      onChange={handleHtmlFileChange}
+                    />
+                    <input
+                      type="file"
+                      id="zip-avatar-folder-upload"
+                      webkitdirectory=""
+                      directory=""
+                      multiple
+                      className="hidden"
+                      onChange={handleFolderChange}
+                    />
                   </div>
-                </div>
-
-                {/* Action Rows */}
-                <div className="flex flex-wrap items-center gap-3 mt-1.5">
-                  {/* HTML File Button */}
-                  <button
-                    type="button"
-                    onClick={() => document.getElementById('zip-avatar-html-upload').click()}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                      zipAvatarHtmlFile 
-                        ? 'bg-[#E8F0FE] text-[#0B57D0] border border-[#ADCCF9]' 
-                        : 'bg-white text-[#49454F] border border-[#CAC4D0] hover:bg-[#E9EEF6]'
-                    }`}
-                  >
-                    {zipAvatarHtmlFile ? `📄 ${zipAvatarHtmlFile.name}` : (lang === 'vi' ? 'Chọn file HTML...' : 'Select HTML file...')}
-                  </button>
-
-                  {/* Folder / Images Button */}
-                  <button
-                    type="button"
-                    disabled={!zipAvatarHtmlFile}
-                    onClick={() => document.getElementById('zip-avatar-folder-upload').click()}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                      zipAvatarImgCount > 0 
-                        ? 'bg-[#E8F0FE] text-[#0B57D0] border border-[#ADCCF9]' 
-                        : 'bg-white text-[#49454F] border border-[#CAC4D0] hover:bg-[#E9EEF6]'
-                    }`}
-                  >
-                    {zipAvatarImgCount > 0 
-                      ? `📁 ${zipAvatarFolderName} (${zipAvatarImgCount} ${lang === 'vi' ? 'ảnh' : 'images'})` 
-                      : (lang === 'vi' 
-                          ? (zipAvatarHtmlFile ? `Chọn thư mục ${zipAvatarFolderName}...` : 'Chọn thư mục ảnh...') 
-                          : (zipAvatarHtmlFile ? `Select ${zipAvatarFolderName} folder...` : 'Select image folder...'))}
-                  </button>
-
-                  {/* Reset Button */}
-                  {(zipAvatarHtmlFile || zipAvatarImgCount > 0) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setZipAvatarHtmlFile(null);
-                        setZipAvatarImgCount(0);
-                        setZipAvatarFolderName('');
-                        zipAvatarFilesRef.current = [];
-                      }}
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
-                      title={lang === 'vi' ? 'Xóa chọn' : 'Clear selection'}
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Hidden inputs */}
-                <input
-                  type="file"
-                  id="zip-avatar-html-upload"
-                  accept=".html,.htm"
-                  className="hidden"
-                  onChange={handleHtmlFileChange}
-                />
-                <input
-                  type="file"
-                  id="zip-avatar-folder-upload"
-                  webkitdirectory=""
-                  directory=""
-                  multiple
-                  className="hidden"
-                  onChange={handleFolderChange}
-                />
+                )}
               </div>
 
             </div>{/* end w-full max-w-2xl container */}
@@ -2572,19 +2711,39 @@ function App() {
                     <ChevronDown className="w-4 h-4 text-[#0B57D0]" />
                   </button>
 
-                  {/* Cache Options Dropdown Menu */}
+                  {/* Cache & Avatar Options Dropdown Menu */}
                   {showCacheMenu && (
-                    <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl bg-white border border-[#CAC4D0] shadow-lg py-2.5 z-30 font-sans text-xs">
+                    <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-white border border-[#CAC4D0] shadow-lg py-2.5 z-30 font-sans text-xs">
                       <button
-                        onClick={handleSaveCache}
+                        onClick={() => {
+                          setShowCacheMenu(false);
+                          document.getElementById('dashboard-avatar-folder-input')?.click();
+                        }}
+                        className="w-full text-left px-4 py-2.5 hover:bg-[#F0F4F9] text-[#1D1B20] transition-colors flex items-center gap-2 font-bold cursor-pointer"
+                      >
+                        <User className="w-4 h-4 text-[#0B57D0]" />
+                        <span>{lang === 'vi' ? 'Nạp ảnh đại diện bạn bè' : 'Load profile avatars'}</span>
+                      </button>
+                      
+                      <div className="my-1 border-t border-[#E1E2EC]"></div>
+
+                      <button
+                        onClick={() => {
+                          setShowCacheMenu(false);
+                          handleSaveCache();
+                        }}
                         disabled={isSavingCache}
                         className="w-full text-left px-4 py-2.5 hover:bg-[#F0F4F9] text-[#1D1B20] transition-colors flex items-center gap-2 font-bold cursor-pointer disabled:opacity-50"
                       >
                         <Award className="w-4 h-4 text-[#0B57D0]" />
                         <span>{t.cacheOptionSave}</span>
                       </button>
+
                       <button
-                        onClick={handleClearCache}
+                        onClick={() => {
+                          setShowCacheMenu(false);
+                          handleClearCache();
+                        }}
                         className="w-full text-left px-4 py-2.5 hover:bg-[#F0F4F9] text-[#B3261E] hover:text-[#B3261E] transition-colors flex items-center gap-2 font-bold cursor-pointer"
                       >
                         <X className="w-4 h-4 text-[#B3261E]" />
@@ -2592,6 +2751,24 @@ function App() {
                       </button>
                     </div>
                   )}
+
+                  {/* Hidden Dashboard Avatar Inputs */}
+                  <input
+                    type="file"
+                    id="dashboard-avatar-html-input"
+                    accept=".html,.htm"
+                    className="hidden"
+                    onChange={handleDashboardAvatarHtmlSelect}
+                  />
+                  <input
+                    type="file"
+                    id="dashboard-avatar-folder-input"
+                    webkitdirectory=""
+                    directory=""
+                    multiple
+                    className="hidden"
+                    onChange={handleDashboardAvatarFolderSelect}
+                  />
                 </div>
               </div>
             </div>
@@ -3288,28 +3465,52 @@ function App() {
                   </button>
 
                   {showDetailExportMenu && (
-                    <div className="absolute right-0 top-full mt-1.5 w-64 rounded-2xl bg-white border border-[#CAC4D0] shadow-lg py-2.5 z-50 font-sans text-xs">
+                    <div className="absolute right-0 top-full mt-1.5 w-72 rounded-2xl bg-white border border-[#CAC4D0] shadow-lg py-2.5 z-50 font-sans text-xs">
                       <button
                         onClick={() => handleExportDetailJson('mine')}
                         className="w-full text-left px-4 py-2 hover:bg-[#F0F4F9] text-[#1D1B20] transition-colors flex flex-col font-bold cursor-pointer"
                       >
-                        <span>{lang === 'vi' ? '1. Định dạng rút gọn (mine)' : '1. Clean Custom format'}</span>
-                        <span className="text-[10px] text-[#625B71] font-normal mt-0.5">{lang === 'vi' ? 'Dạng danh sách tin nhắn phẳng tối giản' : 'Minimalist flat message list array'}</span>
+                        <div className="flex items-center gap-1.5 text-[#0B57D0]">
+                          <FileText className="w-4 h-4" />
+                          <span>{lang === 'vi' ? '1. Clean JSON' : '1. Clean JSON'}</span>
+                        </div>
+                        <span className="text-[10px] text-[#625B71] font-normal mt-0.5">
+                          {lang === 'vi' ? 'Dạng JSON tối giản, timestamp YYYY-MM-DD HH:mm:ss' : 'Minimalist JSON, readable YYYY-MM-DD HH:mm:ss timestamps'}
+                        </span>
                       </button>
+
                       <hr className="my-1.5 border-[#CAC4D0]/50" />
+
+                      <button
+                        onClick={() => handleExportDetailJson('plain_text')}
+                        className="w-full text-left px-4 py-2 hover:bg-[#F0F4F9] text-[#1D1B20] transition-colors flex flex-col font-bold cursor-pointer"
+                      >
+                        <div className="flex items-center gap-1.5 text-[#0B57D0]">
+                          <MessageSquare className="w-4 h-4" />
+                          <span>{lang === 'vi' ? '2. Plain Text (.txt)' : '2. Plain Text (.txt)'}</span>
+                        </div>
+                        <span className="text-[10px] text-[#625B71] font-normal mt-0.5">
+                          {lang === 'vi' ? 'Dạng kịch bản hội thoại [Thời gian] Tên: Nội dung' : 'Dialogue script format [Time] Sender: Content'}
+                        </span>
+                      </button>
+
+                      <hr className="my-1.5 border-[#CAC4D0]/50" />
+
                       <button
                         onClick={() => handleExportDetailJson('fb_old')}
                         className="w-full text-left px-4 py-2 hover:bg-[#F0F4F9] text-[#1D1B20] transition-colors flex flex-col font-bold cursor-pointer"
                       >
-                        <span>{lang === 'vi' ? '2. Facebook (Cấu trúc cũ - non-E2EE)' : '2. Facebook format (non-E2EE)'}</span>
+                        <span>{lang === 'vi' ? '3. Facebook Gốc (non-E2EE)' : '3. Facebook Format (non-E2EE)'}</span>
                         <span className="text-[10px] text-[#625B71] font-normal mt-0.5">{lang === 'vi' ? 'Bao gồm sender_name, timestamp_ms,...' : 'Includes sender_name, timestamp_ms,...'}</span>
                       </button>
+
                       <hr className="my-1.5 border-[#CAC4D0]/50" />
+
                       <button
                         onClick={() => handleExportDetailJson('fb_e2ee')}
                         className="w-full text-left px-4 py-2 hover:bg-[#F0F4F9] text-[#1D1B20] transition-colors flex flex-col font-bold cursor-pointer"
                       >
-                        <span>{lang === 'vi' ? '3. Facebook (Cấu trúc mới - E2EE)' : '3. Facebook format (E2EE)'}</span>
+                        <span>{lang === 'vi' ? '4. Facebook Gốc (E2EE)' : '4. Facebook Format (E2EE)'}</span>
                         <span className="text-[10px] text-[#625B71] font-normal mt-0.5">{lang === 'vi' ? 'Bao gồm senderName, timestampMs,...' : 'Includes senderName, timestampMs,...'}</span>
                       </button>
                     </div>

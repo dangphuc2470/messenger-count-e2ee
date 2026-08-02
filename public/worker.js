@@ -647,6 +647,22 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
           }
         }
 
+        // 3.5. Reactions array check (supports Facebook E2EE and structured reaction objects)
+        if (Array.isArray(msg.reactions) && msg.reactions.length > 0) {
+          const reactCount = msg.reactions.length;
+          stats.reactionCount = (stats.reactionCount || 0) + reactCount;
+          globalStats.totalReactions = (globalStats.totalReactions || 0) + reactCount;
+
+          for (const r of msg.reactions) {
+            const actor = decodeFBString(r.actor || r.sender || r.sender_name || '');
+            const isPersonal = (actor && isCurrentUser(actor)) || isMe;
+            if (isPersonal) {
+              stats.personal.reactionCount = (stats.personal.reactionCount || 0) + 1;
+              globalStats.personal.totalReactions = (globalStats.personal.totalReactions || 0) + 1;
+            }
+          }
+        }
+
         // 4. Text Content
         if (contentStr) {
           const charLength = decodedContent.length;
@@ -758,92 +774,108 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
   });
 }
 
+function formatTimestampToReadable(ts) {
+  if (!ts) return '';
+  const date = new Date(ts);
+  if (isNaN(date.getTime())) return '';
+  const YYYY = date.getFullYear();
+  const MM = String(date.getMonth() + 1).padStart(2, '0');
+  const DD = String(date.getDate()).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  const ss = String(date.getSeconds()).padStart(2, '0');
+  return `${YYYY}-${MM}-${DD} ${hh}:${mm}:${ss}`;
+}
+
 /**
- * Phase 3: Export single chat JSON with decoded characters and custom formats
+ * Phase 3: Export single chat JSON / Plain Text with decoded characters and custom formats
  */
 async function exportChatJson(fileIndices, title, format, fallbackMessagesList, fallbackParticipants) {
   const messages = [];
   const participantsSet = new Set();
 
-  if (storedFiles.length === 0) {
-    if (format === 'mine') {
-      const customMessages = (fallbackMessagesList || []).map(msg => ({
-        sender: msg.sender,
-        content: msg.content || '',
-        timestamp: msg.timestamp,
-        isReaction: !!msg.isReaction,
-        isMedia: !!msg.isMedia,
-        mediaType: msg.mediaType || null
-      }));
-      customMessages.sort((a, b) => a.timestamp - b.timestamp);
+  if (storedFiles.length > 0 && Array.isArray(fileIndices)) {
+    for (const fileIndex of fileIndices) {
+      const file = storedFiles[fileIndex];
+      if (!file) continue;
 
-      self.postMessage({
-        type: 'EXPORT_CHAT_JSON_COMPLETE',
-        data: {
-          title: title,
-          jsonContent: {
-            title: title,
-            participants: fallbackParticipants || [],
-            messages: customMessages
-          },
-          format: format
+      try {
+        const text = await file.text();
+        const json = JSON.parse(text);
+
+        if (Array.isArray(json.participants)) {
+          for (const p of json.participants) {
+            const name = typeof p === 'object' ? (p.name || p.sender_name || '') : p;
+            if (name) participantsSet.add(decodeFBString(name));
+          }
+        } else if (json.recipient) {
+          participantsSet.add(decodeFBString(json.recipient));
         }
-      });
-      return;
-    } else {
-      self.postMessage({
-        type: 'EXPORT_CHAT_JSON_ERROR',
-        data: {
-          title: title,
-          format: format
+
+        const rawMessages = json.messages || [];
+        for (const msg of rawMessages) {
+          messages.push(msg);
         }
-      });
-      return;
+      } catch (err) {
+        console.error('Error parsing file for export:', err);
+      }
     }
   }
 
-  for (const fileIndex of fileIndices) {
-    const file = storedFiles[fileIndex];
-    if (!file) continue;
+  // Format 1: PLAIN TEXT (.txt dialogue log)
+  if (format === 'plain_text') {
+    const rawList = messages.length > 0 ? messages : (fallbackMessagesList || []);
+    const sorted = [...rawList].sort((a, b) => {
+      let tA = a.timestamp_ms || a.timestamp || 0;
+      let tB = b.timestamp_ms || b.timestamp || 0;
+      if (tA > 0 && tA < 1000000000000) tA *= 1000;
+      if (tB > 0 && tB < 1000000000000) tB *= 1000;
+      return tA - tB;
+    });
 
-    try {
-      const text = await file.text();
-      const json = JSON.parse(text);
+    const participantsList = participantsSet.size > 0 ? Array.from(participantsSet) : (fallbackParticipants || []);
+    const lines = [
+      `Conversation: ${title}`,
+      `Participants: ${participantsList.join(', ')}`,
+      `----------------------------------------`
+    ];
 
-      // Extract participants
-      if (Array.isArray(json.participants)) {
-        for (const p of json.participants) {
-          const name = typeof p === 'object' ? (p.name || p.sender_name || '') : p;
-          participantsSet.add(decodeFBString(name));
-        }
-      } else if (json.recipient) {
-        participantsSet.add(decodeFBString(json.recipient));
-      }
+    for (const msg of sorted) {
+      const contentStr = msg.content || msg.text || msg.body || '';
+      const decodedContent = contentStr ? decodeFBString(contentStr) : '';
+      const rawSender = msg.sender || msg.sender_name || msg.senderName || UNKNOWN_SENDER;
+      const sender = decodeFBString(rawSender);
 
-      const rawMessages = json.messages || [];
-      for (const msg of rawMessages) {
-        messages.push(msg);
-      }
-    } catch (err) {
-      console.error('Error parsing file for export:', err);
+      let timestampMs = msg.timestamp_ms || msg.timestamp || 0;
+      if (timestampMs > 0 && timestampMs < 1000000000000) timestampMs *= 1000;
+
+      const timeStr = formatTimestampToReadable(timestampMs);
+      lines.push(`[${timeStr}] ${sender}: ${decodedContent}`);
     }
+
+    self.postMessage({
+      type: 'EXPORT_CHAT_JSON_COMPLETE',
+      data: {
+        title: title,
+        jsonContent: null,
+        textContent: lines.join('\n'),
+        format: 'plain_text'
+      }
+    });
+    return;
   }
 
   let outputObj;
 
-  if (format === 'mine') {
-    // 1. My clean custom format
-    const customMessages = messages.map((msg) => {
+  // Format 2: CLEAN JSON (mine / clean_json)
+  if (format === 'mine' || format === 'clean_json') {
+    const rawList = messages.length > 0 ? messages : (fallbackMessagesList || []);
+    const customMessages = rawList.map((msg) => {
       const contentStr = msg.content || msg.text || msg.body || '';
-      let decodedContent = '';
-      let isReactionMsg = false;
-      if (contentStr) {
-        decodedContent = decodeFBString(contentStr);
-        isReactionMsg = REACTION_PATTERNS.some(p => p.test(decodedContent) || p.test(contentStr));
-      }
+      let decodedContent = contentStr ? decodeFBString(contentStr) : '';
 
       let sender = UNKNOWN_SENDER;
-      const rawSender = msg.sender_name || msg.senderName;
+      const rawSender = msg.sender || msg.sender_name || msg.senderName;
       if (rawSender) {
         sender = decodeFBString(rawSender);
       }
@@ -853,8 +885,12 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
         timestampMs *= 1000;
       }
 
-      let hasMedia = false;
-      let mediaTypeLabel = null;
+      const item = {
+        time: formatTimestampToReadable(timestampMs),
+        sender,
+        content: decodedContent
+      };
+
       if (
         (msg.photos && msg.photos.length > 0) ||
         (msg.videos && msg.videos.length > 0) ||
@@ -862,38 +898,38 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
         (msg.audio_files && msg.audio_files.length > 0) ||
         (msg.files && msg.files.length > 0) ||
         msg.sticker ||
-        (msg.media && msg.media.length > 0)
+        (msg.media && msg.media.length > 0) ||
+        msg.isMedia
       ) {
-        hasMedia = true;
+        let mediaTypeLabel = msg.mediaType || MEDIA_TYPES.FILE;
         if (msg.photos || (msg.media && msg.type === 'image')) mediaTypeLabel = MEDIA_TYPES.PHOTO;
         else if (msg.videos || (msg.media && msg.type === 'video')) mediaTypeLabel = MEDIA_TYPES.VIDEO;
         else if (msg.gifs) mediaTypeLabel = MEDIA_TYPES.GIF;
         else if (msg.audio_files) mediaTypeLabel = MEDIA_TYPES.AUDIO;
         else if (msg.sticker) mediaTypeLabel = MEDIA_TYPES.STICKER;
-        else mediaTypeLabel = MEDIA_TYPES.FILE;
+        item.media = mediaTypeLabel;
       }
 
-      return {
-        sender,
-        content: decodedContent,
-        timestamp: timestampMs,
-        isReaction: isReactionMsg,
-        isMedia: hasMedia,
-        mediaType: mediaTypeLabel
-      };
+      const isReaction = msg.isReaction || REACTION_PATTERNS.some(p => p.test(decodedContent) || p.test(contentStr)) || (Array.isArray(msg.reactions) && msg.reactions.length > 0);
+      if (isReaction) {
+        item.isReaction = true;
+      }
+
+      return item;
     });
 
-    // Chronological sorting (oldest to newest)
-    customMessages.sort((a, b) => a.timestamp - b.timestamp);
+    customMessages.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
+    const participantsList = participantsSet.size > 0 ? Array.from(participantsSet) : (fallbackParticipants || []);
 
     outputObj = {
       title: title,
-      participants: Array.from(participantsSet),
+      participants: participantsList,
       messages: customMessages
     };
 
   } else {
-    // 2. Facebook original format (fb_old or fb_e2ee) but decoded and merged
+    // Formats 3 & 4: Facebook Original formats (fb_old / fb_e2ee)
     const fbMessages = messages.map(msg => {
       const contentStr = msg.content || msg.text || msg.body || '';
       const decodedContent = contentStr ? decodeFBString(contentStr) : '';
@@ -906,13 +942,11 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
         timestampMs *= 1000;
       }
 
-      // Map reactions
       const reactions = (msg.reactions || []).map(r => ({
         reaction: decodeFBString(r.reaction),
         actor: decodeFBString(r.actor || r.sender || '')
       }));
 
-      // Map media arrays
       const mapMediaArray = (arr) => {
         if (!Array.isArray(arr)) return undefined;
         return arr.map(item => ({
@@ -934,7 +968,6 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
         mappedMsg.sender_name = decodedSender;
         mappedMsg.timestamp_ms = timestampMs;
       } else {
-        // E2EE camelCase structure
         mappedMsg.senderName = decodedSender;
         mappedMsg.timestampMs = timestampMs;
       }
@@ -955,7 +988,6 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
       return mappedMsg;
     });
 
-    // Facebook standard sorting (newest first / descending timestamp)
     fbMessages.sort((a, b) => {
       const tA = a.timestamp_ms || a.timestampMs || 0;
       const tB = b.timestamp_ms || b.timestampMs || 0;
