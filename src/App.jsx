@@ -2606,6 +2606,24 @@ function App() {
                             </div>
                           )}
                         </div>
+
+                        {/* FIRST & LAST MESSAGES SNIPPET PREVIEW */}
+                        {(group.firstMsg || group.lastMsg) && (
+                          <div className="mt-2.5 p-2.5 rounded-xl bg-[#E9EEF6] border border-[#CAC4D0]/60 text-xs text-[#1D1B20] space-y-1 font-sans shadow-2xs">
+                            {group.firstMsg && (
+                              <div className="flex items-start gap-1.5 truncate">
+                                <span className="font-bold text-[#0B57D0] shrink-0">💬 {lang === 'vi' ? 'Tin đầu:' : 'First msg:'}</span>
+                                <span className="italic truncate text-[#49454F]">"{group.firstMsg}"</span>
+                              </div>
+                            )}
+                            {group.lastMsg && (
+                              <div className="flex items-start gap-1.5 truncate">
+                                <span className="font-bold text-[#1A73E8] shrink-0">💬 {lang === 'vi' ? 'Tin mới nhất:' : 'Latest msg:'}</span>
+                                <span className="italic truncate text-[#49454F]">"{group.lastMsg}"</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       <div className="text-right min-w-[100px] pl-4">

@@ -149,7 +149,11 @@ async function scanFiles(files) {
         
         let reactionCount = 0;
         let standardMsgCount = 0;
-        for (const msg of json.messages) {
+        let firstMsg = '';
+        let lastMsg = '';
+        const rawMsgs = json.messages || [];
+
+        for (const msg of rawMsgs) {
           const c = msg.content || msg.text || msg.body || '';
           if (c) {
             const decoded = decodeFBString(c);
@@ -157,6 +161,11 @@ async function scanFiles(files) {
               reactionCount++;
               continue;
             }
+            const rawSender = msg.sender_name || msg.senderName || msg.sender || '';
+            const sender = rawSender ? decodeFBString(rawSender) : '';
+            const formatted = sender ? `${sender}: ${decoded}` : decoded;
+            if (!firstMsg) firstMsg = formatted;
+            lastMsg = formatted;
           }
           standardMsgCount++;
         }
@@ -170,14 +179,20 @@ async function scanFiles(files) {
           participants: participants,
           messageCount: standardMsgCount,
           reactionCount: reactionCount,
-          type: 'standard'
+          type: 'standard',
+          firstMsg: firstMsg,
+          lastMsg: lastMsg
         });
       } else if (isDating) {
         const recipient = decodeFBString(json.recipient);
         
         let reactionCount = 0;
         let standardMsgCount = 0;
-        for (const msg of json.messages) {
+        let firstMsg = '';
+        let lastMsg = '';
+        const rawMsgs = json.messages || [];
+
+        for (const msg of rawMsgs) {
           const c = msg.content || msg.text || msg.body || '';
           if (c) {
             const decoded = decodeFBString(c);
@@ -185,6 +200,11 @@ async function scanFiles(files) {
               reactionCount++;
               continue;
             }
+            const rawSender = msg.sender_name || msg.senderName || msg.sender || '';
+            const sender = rawSender ? decodeFBString(rawSender) : recipient;
+            const formatted = `${sender}: ${decoded}`;
+            if (!firstMsg) firstMsg = formatted;
+            lastMsg = formatted;
           }
           standardMsgCount++;
         }
@@ -198,7 +218,9 @@ async function scanFiles(files) {
           participants: [recipient],
           messageCount: standardMsgCount,
           reactionCount: reactionCount,
-          type: 'dating'
+          type: 'dating',
+          firstMsg: firstMsg,
+          lastMsg: lastMsg
         });
       }
     } catch (err) {
@@ -234,8 +256,14 @@ async function scanFiles(files) {
         files: [],
         totalMessages: 0,
         totalReactions: 0,
-        totalSize: 0
+        totalSize: 0,
+        firstMsg: item.firstMsg || '',
+        lastMsg: item.lastMsg || ''
       });
+    } else {
+      const g = groupsMap.get(signature);
+      if (!g.firstMsg && item.firstMsg) g.firstMsg = item.firstMsg;
+      if (item.lastMsg) g.lastMsg = item.lastMsg;
     }
 
     const group = groupsMap.get(signature);
