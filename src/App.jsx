@@ -445,6 +445,8 @@ function App() {
 
   // Merge Review Configuration State
   const [mergeConfig, setMergeConfig] = useState({}); // Maps dating/custom group IDs to target messenger DM group IDs
+  const [showAmbiguousModal, setShowAmbiguousModal] = useState(false);
+  const [ambiguousContacts, setAmbiguousContacts] = useState([]);
 
   // Detail Modal Export States
   const [showDetailExportMenu, setShowDetailExportMenu] = useState(false);
@@ -930,12 +932,28 @@ function App() {
         case 'SCAN_PROGRESS':
           setScanProgress(data);
           break;
-        case 'SCAN_COMPLETE':
+        case 'SCAN_COMPLETE': {
           setRawGroups(data.groups);
           const allIds = data.groups.map(g => g.id);
           setSelectedGroups(new Set(allIds));
+
+          const ambiguous = (data.groups || []).filter(g => {
+            if (g.type === CHAT_TYPES.DATING) return true;
+            const tLower = (g.title || '').toLowerCase();
+            return tLower.includes('người dùng facebook') ||
+                   tLower.includes('facebook user') ||
+                   tLower.includes('người dùng hẹn hò') ||
+                   tLower.includes('không có tên') ||
+                   tLower.includes('unknown');
+          });
+
+          if (ambiguous.length > 0) {
+            setAmbiguousContacts(ambiguous);
+            setShowAmbiguousModal(true);
+          }
           setScreen('merge_review');
           break;
+        }
         case 'ANALYZE_PROGRESS':
           setAnalyzeProgress(prev => ({
             ...prev,
@@ -2606,24 +2624,6 @@ function App() {
                             </div>
                           )}
                         </div>
-
-                        {/* FIRST & LAST MESSAGES SNIPPET PREVIEW */}
-                        {(group.firstMsg || group.lastMsg) && (
-                          <div className="mt-2.5 p-2.5 rounded-xl bg-[#E9EEF6] border border-[#CAC4D0]/60 text-xs text-[#1D1B20] space-y-1 font-sans shadow-2xs">
-                            {group.firstMsg && (
-                              <div className="flex items-start gap-1.5 truncate">
-                                <span className="font-bold text-[#0B57D0] shrink-0">💬 {lang === 'vi' ? 'Tin đầu:' : 'First msg:'}</span>
-                                <span className="italic truncate text-[#49454F]">"{group.firstMsg}"</span>
-                              </div>
-                            )}
-                            {group.lastMsg && (
-                              <div className="flex items-start gap-1.5 truncate">
-                                <span className="font-bold text-[#1A73E8] shrink-0">💬 {lang === 'vi' ? 'Tin mới nhất:' : 'Latest msg:'}</span>
-                                <span className="italic truncate text-[#49454F]">"{group.lastMsg}"</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </div>
 
                       <div className="text-right min-w-[100px] pl-4">
@@ -4092,6 +4092,142 @@ function App() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== AMBIGUOUS / DATING CONTACTS MERGE POPUP MODAL ==================== */}
+      {showAmbiguousModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm font-sans">
+          <div className="relative w-full max-w-2xl rounded-[32px] bg-[#F8FAFC] border border-[#CAC4D0] p-6 sm:p-8 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-4 pb-4 border-b border-[#CAC4D0]">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-full bg-[#FCE4EC] text-[#D81B60]">
+                  <Heart className="w-6 h-6 fill-[#D81B60]" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-extrabold text-[#1D1B20]">
+                    {lang === 'vi' ? 'Nhận diện & Gộp liên hệ Hẹn hò / Chưa rõ tên' : 'Identify & Merge Dating / Anonymous Contacts'}
+                  </h3>
+                  <p className="text-xs text-[#49454F] mt-0.5">
+                    {lang === 'vi'
+                      ? `Phát hiện ${ambiguousContacts.length} liên hệ từ Facebook Dating hoặc tài khoản chưa rõ tên. Đọc tin nhắn bên dưới để chọn gộp:`
+                      : `Detected ${ambiguousContacts.length} contacts from Dating or anonymous profiles. Read message previews below to merge:`}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAmbiguousModal(false)}
+                className="p-2 rounded-full hover:bg-[#E9EEF6] text-[#49454F] transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal List Body */}
+            <div className="py-4 space-y-4 overflow-y-auto max-h-[55vh] pr-1 my-2">
+              {ambiguousContacts.map((group) => {
+                const selectedTargetId = mergeConfig[group.id];
+                const targetGroup = rawGroups.find(g => g.id === selectedTargetId);
+
+                return (
+                  <div key={group.id} className="p-4 rounded-2xl bg-white border border-[#CAC4D0] shadow-xs space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-sm text-[#1D1B20]">{group.title}</span>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${group.type === CHAT_TYPES.DATING ? 'bg-[#FCE4EC] text-[#D81B60]' : 'bg-[#E9EEF6] text-[#0B57D0]'}`}>
+                          {group.type === CHAT_TYPES.DATING ? (lang === 'vi' ? 'Hẹn hò' : 'Dating') : (lang === 'vi' ? 'Chưa rõ tên' : 'Anonymous')}
+                        </span>
+                      </div>
+                      <span className="text-xs text-[#625B71] font-mono font-semibold">
+                        {group.totalMessages.toLocaleString()} {lang === 'vi' ? 'tin' : 'msgs'}
+                      </span>
+                    </div>
+
+                    {/* Message Snippet Box */}
+                    {(group.firstMsg || group.lastMsg) && (
+                      <div className="p-3 rounded-xl bg-[#F0F4F9] border border-[#CAC4D0]/60 text-xs space-y-1 font-sans">
+                        {group.firstMsg && (
+                          <div className="flex items-start gap-1.5 truncate">
+                            <span className="font-bold text-[#0B57D0] shrink-0">💬 {lang === 'vi' ? 'Tin đầu:' : 'First msg:'}</span>
+                            <span className="italic truncate text-[#49454F]">"{group.firstMsg}"</span>
+                          </div>
+                        )}
+                        {group.lastMsg && (
+                          <div className="flex items-start gap-1.5 truncate">
+                            <span className="font-bold text-[#1A73E8] shrink-0">💬 {lang === 'vi' ? 'Tin mới nhất:' : 'Latest msg:'}</span>
+                            <span className="italic truncate text-[#49454F]">"{group.lastMsg}"</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Dropdown Selector */}
+                    <div className="flex items-center gap-2 flex-wrap text-xs pt-1">
+                      <span className="font-bold text-[#49454F]">
+                        {lang === 'vi' ? 'Gộp vào bạn bè Messenger:' : 'Merge into Messenger friend:'}
+                      </span>
+                      <select
+                        value={mergeConfig[group.id] || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setMergeConfig(prev => {
+                            const next = { ...prev };
+                            if (val) {
+                              next[group.id] = val;
+                              setSelectedGroups(sg => new Set([...sg, group.id, val]));
+                            } else {
+                              delete next[group.id];
+                            }
+                            return next;
+                          });
+                        }}
+                        className="bg-[#F0F4F9] border border-[#79747E] text-[#1D1B20] rounded-full px-3.5 py-1.5 text-xs focus:outline-none focus:border-[#0B57D0] cursor-pointer font-bold shadow-xs hover:border-[#0B57D0]"
+                      >
+                        <option value="">
+                          {lang === 'vi' ? '-- Chọn liên hệ để gộp --' : '-- Select contact --'}
+                        </option>
+                        {rawGroups
+                          .filter(g => g.type === CHAT_TYPES.INDIVIDUAL && g.id !== group.id)
+                          .map(g => (
+                            <option key={g.id} value={g.id}>
+                              {g.title} ({g.totalMessages.toLocaleString()} {lang === 'vi' ? 'tin' : 'msgs'})
+                            </option>
+                          ))}
+                      </select>
+                      {selectedTargetId && targetGroup && (
+                        <span className="text-[11px] font-bold text-[#137333] bg-[#E6F4EA] px-2.5 py-0.5 rounded-full border border-[#CEEAD6]">
+                          ✓ {lang === 'vi' ? `Đã chọn gộp vào ${targetGroup.title}` : `Merged into ${targetGroup.title}`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#CAC4D0]">
+              <button
+                onClick={() => setShowAmbiguousModal(false)}
+                className="px-5 py-2.5 rounded-full border border-[#79747E] text-[#49454F] hover:bg-[#E9EEF6] font-bold text-xs transition-colors cursor-pointer"
+              >
+                {lang === 'vi' ? 'Bỏ qua (Giữ riêng)' : 'Skip'}
+              </button>
+              <button
+                onClick={() => {
+                  setShowAmbiguousModal(false);
+                  handleStartAnalysis();
+                }}
+                className="px-6 py-2.5 rounded-full bg-[#0B57D0] hover:bg-[#0842A0] text-white font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <span>{lang === 'vi' ? 'Xác nhận & Bắt đầu phân tích' : 'Confirm & Start Analysis'}</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
           </div>
         </div>
       )}
