@@ -1711,12 +1711,16 @@ function App() {
     };
   }, [selectedGroupDetails, modalTab, lang, statsMode]);
 
-  // Scroll to bottom
+  // Scroll to bottom for newest messages, scroll to top for oldest messages
   useEffect(() => {
     if (modalTab === 'chat' && chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      if (chatSortOrder === 'oldest') {
+        chatContainerRef.current.scrollTop = 0;
+      } else {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      }
     }
-  }, [modalTab, selectedGroupDetails, visibleMessageCount]);
+  }, [modalTab, selectedGroupDetails, visibleMessageCount, chatSortOrder]);
 
   // Filter & Sort Leaderboard
   const filteredAndSortedGroups = analyzedGroups
