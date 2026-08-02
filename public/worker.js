@@ -135,17 +135,20 @@ async function scanFiles(files) {
       const json = JSON.parse(text);
 
       const isDating = !!json.recipient && Array.isArray(json.messages);
-      const isStandard = Array.isArray(json.messages) && (Array.isArray(json.participants) || !!json.title);
+      const isStandard = !isDating && Array.isArray(json.messages);
 
       if (isStandard) {
-        let title = decodeFBString(json.title || json.threadName || 'Không có tên');
-        title = title.replace(/_\d+$/, '').trim();
-        const participants = (json.participants || []).map(p => {
+        let rawTitle = json.title || json.threadName || (json.thread_path ? json.thread_path.split(/[\/\\]/).pop() : '') || 'Tin nhắn Messenger';
+        let title = decodeFBString(rawTitle).replace(/_\d+$/, '').trim();
+        let participants = (json.participants || []).map(p => {
           if (p && typeof p === 'object') {
             return decodeFBString(p.name || p.sender_name || '');
           }
           return decodeFBString(p || '');
-        });
+        }).filter(Boolean);
+        if (participants.length === 0 && title && title !== 'Tin nhắn Messenger') {
+          participants.push(title);
+        }
         
         let reactionCount = 0;
         let standardMsgCount = 0;
@@ -396,7 +399,7 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
       const json = JSON.parse(text);
 
       const isDating = !!json.recipient && Array.isArray(json.messages);
-      const isStandard = Array.isArray(json.messages) && (Array.isArray(json.participants) || !!json.title);
+      const isStandard = !isDating && Array.isArray(json.messages);
       
       let signature = '';
       let title = '';
@@ -404,14 +407,17 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
       let participants = [];
 
       if (isStandard) {
-        title = decodeFBString(json.title || json.threadName || 'Không có tên');
-        title = title.replace(/_\d+$/, '').trim();
+        let rawTitle = json.title || json.threadName || (json.thread_path ? json.thread_path.split(/[\/\\]/).pop() : '') || 'Tin nhắn Messenger';
+        title = decodeFBString(rawTitle).replace(/_\d+$/, '').trim();
         participants = (json.participants || []).map(p => {
           if (p && typeof p === 'object') {
             return decodeFBString(p.name || p.sender_name || '');
           }
           return decodeFBString(p || '');
-        });
+        }).filter(Boolean);
+        if (participants.length === 0 && title && title !== 'Tin nhắn Messenger') {
+          participants.push(title);
+        }
         const sortedParticipants = [...participants].sort();
         if (sortedParticipants.length === 2) {
           signature = `dm_${sortedParticipants.join('_vs_')}`;
