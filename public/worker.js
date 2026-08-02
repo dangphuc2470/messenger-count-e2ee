@@ -878,7 +878,8 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
         const text = await file.text();
         const json = JSON.parse(text);
 
-        if (json.recipient && Array.isArray(json.messages)) {
+        const isFileDating = !!json.recipient && Array.isArray(json.messages);
+        if (isFileDating) {
           hasDating = true;
         }
 
@@ -893,6 +894,9 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
 
         const rawMessages = json.messages || [];
         for (const msg of rawMessages) {
+          if (isFileDating) {
+            msg.isDating = true;
+          }
           messages.push(msg);
         }
       } catch (err) {
@@ -939,7 +943,7 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
     let inDatingBlock = false;
 
     for (const msg of sorted) {
-      const isDatingMsg = !!msg.isDating || (!msg.sender_name && !msg.sender && (hasDating || title.includes('Hẹn hò') || title.includes('Dating')));
+      const isDatingMsg = !!msg.isDating || !!msg.isDatingMsg || (msg.content && typeof msg.content === 'string' && msg.content.includes('Hẹn hò trên Facebook'));
 
       if (isDatingMsg && !inDatingBlock) {
         inDatingBlock = true;
@@ -997,7 +1001,7 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
       const contentStr = msg.content || msg.text || msg.body || '';
       let decodedContent = contentStr ? decodeFBString(contentStr) : '';
 
-      const isDatingMsg = !!msg.isDating || (!msg.sender_name && !msg.sender && (hasDating || title.includes('Hẹn hò')));
+      const isDatingMsg = !!msg.isDating || !!msg.isDatingMsg || (contentStr && typeof contentStr === 'string' && contentStr.includes('Hẹn hò trên Facebook'));
       let sender = UNKNOWN_SENDER;
       const rawSender = msg.sender || msg.sender_name || msg.senderName;
       if (rawSender) {
