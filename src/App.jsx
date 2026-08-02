@@ -5,7 +5,7 @@ import {
   FolderOpen, Calendar, Image, FileText, ChevronRight,
   Search, ArrowUpDown, X, Loader2, Info, ArrowLeft, RefreshCw,
   Clock, Award, MessageCircle, Sparkles, ChevronDown, Download, User,
-  LayoutGrid, List, FileArchive, Heart
+  LayoutGrid, List, FileArchive, Heart, ChevronUp
 } from 'lucide-react';
 import { Chart, registerables } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
@@ -447,6 +447,16 @@ function App() {
   const [mergeConfig, setMergeConfig] = useState({}); // Maps dating/custom group IDs to target messenger DM group IDs
   const [showAmbiguousModal, setShowAmbiguousModal] = useState(false);
   const [ambiguousContacts, setAmbiguousContacts] = useState([]);
+  const [expandedModalCardIds, setExpandedModalCardIds] = useState(new Set());
+
+  const toggleModalCardExpand = (id) => {
+    setExpandedModalCardIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   // Detail Modal Export States
   const [showDetailExportMenu, setShowDetailExportMenu] = useState(false);
@@ -4104,8 +4114,8 @@ function App() {
             {/* Modal Header */}
             <div className="flex items-start justify-between gap-4 pb-4 border-b border-[#CAC4D0]">
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-full bg-[#FCE4EC] text-[#D81B60]">
-                  <Heart className="w-6 h-6 fill-[#D81B60]" />
+                <div className="p-3 rounded-full bg-[#E9EEF6] text-[#0B57D0]">
+                  <Users className="w-6 h-6 text-[#0B57D0]" />
                 </div>
                 <div>
                   <h3 className="text-xl font-extrabold text-[#1D1B20]">
@@ -4131,6 +4141,7 @@ function App() {
               {ambiguousContacts.map((group) => {
                 const selectedTargetId = mergeConfig[group.id];
                 const targetGroup = rawGroups.find(g => g.id === selectedTargetId);
+                const isExpanded = expandedModalCardIds.has(group.id);
 
                 return (
                   <div key={group.id} className="p-4 rounded-2xl bg-white border border-[#CAC4D0] shadow-xs space-y-3">
@@ -4146,20 +4157,48 @@ function App() {
                       </span>
                     </div>
 
-                    {/* Message Snippet Box */}
-                    {(group.firstMsg || group.lastMsg) && (
-                      <div className="p-3 rounded-xl bg-[#F0F4F9] border border-[#CAC4D0]/60 text-xs space-y-1 font-sans">
-                        {group.firstMsg && (
-                          <div className="flex items-start gap-1.5 truncate">
-                            <span className="font-bold text-[#0B57D0] shrink-0">💬 {lang === 'vi' ? 'Tin đầu:' : 'First msg:'}</span>
-                            <span className="italic truncate text-[#49454F]">"{group.firstMsg}"</span>
+                    {/* Message Preview Box (No Emojis, with Expand/Collapse) */}
+                    {((group.sampleMsgs && group.sampleMsgs.length > 0) || group.firstMsg || group.lastMsg) && (
+                      <div className="p-3 rounded-xl bg-[#F0F4F9] border border-[#CAC4D0]/60 text-xs space-y-1.5 font-sans">
+                        <div className="flex items-center justify-between font-bold text-[#0B57D0] mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            <span>{lang === 'vi' ? 'Tin nhắn xem trước:' : 'Message previews:'}</span>
                           </div>
-                        )}
-                        {group.lastMsg && (
-                          <div className="flex items-start gap-1.5 truncate">
-                            <span className="font-bold text-[#1A73E8] shrink-0">💬 {lang === 'vi' ? 'Tin mới nhất:' : 'Latest msg:'}</span>
-                            <span className="italic truncate text-[#49454F]">"{group.lastMsg}"</span>
+                          {group.sampleMsgs && group.sampleMsgs.length > 2 && (
+                            <button
+                              onClick={() => toggleModalCardExpand(group.id)}
+                              className="text-[11px] font-bold text-[#0B57D0] hover:underline flex items-center gap-1 cursor-pointer"
+                            >
+                              <span>{isExpanded ? (lang === 'vi' ? 'Thu gọn' : 'Collapse') : (lang === 'vi' ? `Xem thêm (${group.sampleMsgs.length} tin)` : `Show more (${group.sampleMsgs.length})`)}</span>
+                              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            </button>
+                          )}
+                        </div>
+
+                        {isExpanded && group.sampleMsgs && group.sampleMsgs.length > 0 ? (
+                          <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                            {group.sampleMsgs.map((mStr, idx) => (
+                              <div key={idx} className="truncate text-[#49454F] italic pl-2 border-l-2 border-[#0B57D0]/40">
+                                "{mStr}"
+                              </div>
+                            ))}
                           </div>
+                        ) : (
+                          <>
+                            {group.firstMsg && (
+                              <div className="flex items-start gap-1.5 truncate">
+                                <span className="font-bold text-[#49454F] shrink-0">{lang === 'vi' ? 'Tin đầu:' : 'First:'}</span>
+                                <span className="italic truncate text-[#625B71]">"{group.firstMsg}"</span>
+                              </div>
+                            )}
+                            {group.lastMsg && (
+                              <div className="flex items-start gap-1.5 truncate">
+                                <span className="font-bold text-[#49454F] shrink-0">{lang === 'vi' ? 'Tin mới nhất:' : 'Latest:'}</span>
+                                <span className="italic truncate text-[#625B71]">"{group.lastMsg}"</span>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     )}
@@ -4199,7 +4238,7 @@ function App() {
                       </select>
                       {selectedTargetId && targetGroup && (
                         <span className="text-[11px] font-bold text-[#137333] bg-[#E6F4EA] px-2.5 py-0.5 rounded-full border border-[#CEEAD6]">
-                          ✓ {lang === 'vi' ? `Đã chọn gộp vào ${targetGroup.title}` : `Merged into ${targetGroup.title}`}
+                          {lang === 'vi' ? `Đã chọn gộp vào ${targetGroup.title}` : `Merged into ${targetGroup.title}`}
                         </span>
                       )}
                     </div>
