@@ -822,6 +822,17 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
     }
   }
 
+  if (storedFiles.length === 0 && format !== 'mine' && format !== 'clean_json' && format !== 'plain_text') {
+    self.postMessage({
+      type: 'EXPORT_CHAT_JSON_ERROR',
+      data: {
+        title: title,
+        format: format
+      }
+    });
+    return;
+  }
+
   // Format 1: PLAIN TEXT (.txt dialogue log)
   if (format === 'plain_text') {
     const rawList = messages.length > 0 ? messages : (fallbackMessagesList || []);
