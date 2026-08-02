@@ -556,7 +556,8 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
             timestamp: timestampMs,
             content: decodedContent,
             isMedia: false,
-            isReaction: true
+            isReaction: true,
+            isDating: isDating
           });
           continue;
         }
@@ -783,7 +784,8 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
           timestamp: timestampMs,
           content: decodedContent,
           isMedia: hasMedia,
-          mediaType: mediaTypeLabel
+          mediaType: mediaTypeLabel,
+          isDating: isDating
         });
 
         stats.messageCount++;
@@ -934,14 +936,30 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
       lines.push(`----------------------------------------`);
     }
 
+    let inDatingBlock = false;
+
     for (const msg of sorted) {
+      const isDatingMsg = !!msg.isDating || (!msg.sender_name && !msg.sender && (hasDating || title.includes('Hẹn hò') || title.includes('Dating')));
+
+      if (isDatingMsg && !inDatingBlock) {
+        inDatingBlock = true;
+        lines.push(`----------------------------------------`);
+        lines.push(`[BẮT ĐẦU CHAT HẸN HÒ / START DATING CHAT - NOTE FOR AI]: Bắt đầu đoạn tin nhắn từ Facebook Dating (dating/messages/*.json). Tệp Hẹn hò gốc chỉ lưu tin nhắn 1 chiều do bạn gửi đi.`);
+        lines.push(`----------------------------------------`);
+      } else if (!isDatingMsg && inDatingBlock) {
+        inDatingBlock = false;
+        lines.push(`----------------------------------------`);
+        lines.push(`[KẾT THÚC CHAT HẸN HÒ / END DATING CHAT - NOTE FOR AI]: Kết thúc đoạn tin nhắn từ Facebook Dating. Các tin nhắn tiếp theo bên dưới là từ Messenger chính thức (hội thoại 2 chiều).`);
+        lines.push(`----------------------------------------`);
+      }
+
       const contentStr = msg.content || msg.text || msg.body || '';
       const decodedContent = contentStr ? decodeFBString(contentStr) : '';
       const rawSender = msg.sender || msg.sender_name || msg.senderName;
       let sender = UNKNOWN_SENDER;
       if (rawSender) {
         sender = decodeFBString(rawSender);
-      } else if (hasDating || title.includes('Hẹn hò') || title.includes('Dating')) {
+      } else if (isDatingMsg || hasDating || title.includes('Hẹn hò') || title.includes('Dating')) {
         sender = detectedOwnerName || 'Bạn';
       }
 
@@ -952,9 +970,10 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
       lines.push(`[${timeStr}] ${sender}: ${decodedContent}`);
     }
 
-    if (hasDating || title.includes('Hẹn hò') || title.includes('Dating')) {
+    if (inDatingBlock) {
       lines.push(`----------------------------------------`);
-      lines.push(`[LƯU Ý KẾT THÚC / END NOTE FOR AI]: Kết thúc đoạn tin nhắn từ Facebook Dating.`);
+      lines.push(`[KẾT THÚC CHAT HẸN HÒ / END DATING CHAT - NOTE FOR AI]: Kết thúc đoạn tin nhắn từ Facebook Dating.`);
+      lines.push(`----------------------------------------`);
     }
 
     self.postMessage({
@@ -978,11 +997,12 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
       const contentStr = msg.content || msg.text || msg.body || '';
       let decodedContent = contentStr ? decodeFBString(contentStr) : '';
 
+      const isDatingMsg = !!msg.isDating || (!msg.sender_name && !msg.sender && (hasDating || title.includes('Hẹn hò')));
       let sender = UNKNOWN_SENDER;
       const rawSender = msg.sender || msg.sender_name || msg.senderName;
       if (rawSender) {
         sender = decodeFBString(rawSender);
-      } else if (hasDating || title.includes('Hẹn hò') || title.includes('Dating')) {
+      } else if (isDatingMsg || hasDating || title.includes('Hẹn hò') || title.includes('Dating')) {
         sender = detectedOwnerName || 'Bạn';
       }
 
@@ -994,7 +1014,8 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
       const item = {
         time: formatTimestampToReadable(timestampMs),
         sender,
-        content: decodedContent
+        content: decodedContent,
+        isDating: isDatingMsg
       };
 
       if (
@@ -1026,19 +1047,43 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
 
     customMessages.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
 
+    const finalCustomMessages = [];
     if (hasDating || title.includes('Hẹn hò') || title.includes('Dating')) {
       if (customMessages.length > 0) {
-        customMessages.unshift({
+        finalCustomMessages.push({
           time: customMessages[0].time,
           sender: "System Note",
           content: "[LƯU Ý / NOTE FOR AI]: Đoạn chat này chứa dữ liệu từ tệp Facebook Dating (dating/messages/*.json). Tệp Facebook Dating gốc CHỈ LƯU DUY NHẤT tin nhắn do bạn gửi đi, HOÀN TOÀN KHÔNG LƯU tin nhắn phản hồi của đối phương. (Mẹo: Cần bấm nút 'Gửi thông tin / Chuyển sang Messenger' trực tiếp từ Facebook Dating để Facebook tự động đồng bộ đầy đủ lịch sử chat 2 chiều sang Messenger)."
         });
-        customMessages.push({
-          time: customMessages[customMessages.length - 1].time,
+      }
+    }
+
+    let inDatingBlockClean = false;
+    for (const item of customMessages) {
+      if (item.isDating && !inDatingBlockClean) {
+        inDatingBlockClean = true;
+        finalCustomMessages.push({
+          time: item.time,
           sender: "System Note",
-          content: "[LƯU Ý KẾT THÚC / END NOTE FOR AI]: Kết thúc đoạn tin nhắn từ Facebook Dating."
+          content: "[BẮT ĐẦU CHAT HẸN HÒ / START DATING CHAT - NOTE FOR AI]: Bắt đầu đoạn tin nhắn từ Facebook Dating."
+        });
+      } else if (!item.isDating && inDatingBlockClean) {
+        inDatingBlockClean = false;
+        finalCustomMessages.push({
+          time: item.time,
+          sender: "System Note",
+          content: "[KẾT THÚC CHAT HẸN HÒ / END DATING CHAT - NOTE FOR AI]: Kết thúc đoạn tin nhắn từ Facebook Dating. Các tin nhắn tiếp theo bên dưới là từ Messenger chính thức (hội thoại 2 chiều)."
         });
       }
+      finalCustomMessages.push(item);
+    }
+
+    if (inDatingBlockClean && finalCustomMessages.length > 0) {
+      finalCustomMessages.push({
+        time: finalCustomMessages[finalCustomMessages.length - 1].time,
+        sender: "System Note",
+        content: "[KẾT THÚC CHAT HẸN HÒ / END DATING CHAT - NOTE FOR AI]: Kết thúc đoạn tin nhắn từ Facebook Dating."
+      });
     }
 
     const participantsList = participantsSet.size > 0 ? Array.from(participantsSet) : (fallbackParticipants || []);
@@ -1047,7 +1092,7 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
       title: title,
       participants: participantsList,
       ...(hasDating ? { dating_note: "Đoạn chat này chứa dữ liệu từ tệp Facebook Dating (dating/messages/*.json). Tệp Facebook Dating gốc CHỈ LƯU DUY NHẤT tin nhắn do bạn gửi đi, HOÀN TOÀN KHÔNG LƯU tin nhắn phản hồi của đối phương. (Mẹo: Cần bấm nút 'Gửi thông tin / Chuyển sang Messenger' trực tiếp từ Facebook Dating để Facebook tự động đồng bộ đầy đủ lịch sử chat 2 chiều sang Messenger)." } : {}),
-      messages: customMessages
+      messages: finalCustomMessages
     };
 
   } else {
