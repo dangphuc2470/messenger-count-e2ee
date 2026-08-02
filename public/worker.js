@@ -508,7 +508,13 @@ async function analyzeGroups(selectedGroupIds, mergeConfig) {
         if (rawSender) {
           sender = decodeFBString(rawSender);
         } else if (isDating) {
-          sender = title;
+          let datingUserSender = detectedOwnerName;
+          const targetMeta = scannedGroupsCache.find(g => g.id === targetGroupId);
+          if (!datingUserSender && targetMeta && Array.isArray(targetMeta.participants)) {
+            const otherP = targetMeta.participants.find(p => p !== title && p !== (stats ? stats.title : ''));
+            if (otherP) datingUserSender = otherP;
+          }
+          sender = datingUserSender || (detectedOwnerName || 'Bạn');
         }
 
         // 2. Timestamp
@@ -931,8 +937,13 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
     for (const msg of sorted) {
       const contentStr = msg.content || msg.text || msg.body || '';
       const decodedContent = contentStr ? decodeFBString(contentStr) : '';
-      const rawSender = msg.sender || msg.sender_name || msg.senderName || UNKNOWN_SENDER;
-      const sender = decodeFBString(rawSender);
+      const rawSender = msg.sender || msg.sender_name || msg.senderName;
+      let sender = UNKNOWN_SENDER;
+      if (rawSender) {
+        sender = decodeFBString(rawSender);
+      } else if (hasDating || title.includes('Hẹn hò') || title.includes('Dating')) {
+        sender = detectedOwnerName || 'Bạn';
+      }
 
       let timestampMs = msg.timestamp_ms || msg.timestamp || 0;
       if (timestampMs > 0 && timestampMs < 1000000000000) timestampMs *= 1000;
@@ -971,6 +982,8 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
       const rawSender = msg.sender || msg.sender_name || msg.senderName;
       if (rawSender) {
         sender = decodeFBString(rawSender);
+      } else if (hasDating || title.includes('Hẹn hò') || title.includes('Dating')) {
+        sender = detectedOwnerName || 'Bạn';
       }
 
       let timestampMs = msg.timestamp_ms || msg.timestamp || 0;
