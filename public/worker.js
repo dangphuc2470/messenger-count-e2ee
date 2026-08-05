@@ -104,7 +104,7 @@ self.onmessage = async function (e) {
   } else if (type === 'ANALYZE_GROUPS') {
     await analyzeGroups(data.selectedGroupIds, data.mergeConfig);
   } else if (type === 'EXPORT_CHAT_JSON') {
-    await exportChatJson(data.fileIndices, data.title, data.format, data.messagesList, data.participants);
+    await exportChatJson(data.fileIndices, data.title, data.format, data.messagesList, data.participants, data.splitLimit);
   }
 };
 
@@ -863,7 +863,7 @@ function formatTimestampToReadable(ts) {
 /**
  * Phase 3: Export single chat JSON / Plain Text with decoded characters and custom formats
  */
-async function exportChatJson(fileIndices, title, format, fallbackMessagesList, fallbackParticipants) {
+async function exportChatJson(fileIndices, title, format, fallbackMessagesList, fallbackParticipants, splitLimit) {
   const messages = [];
   const participantsSet = new Set();
 
@@ -928,18 +928,19 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
     });
 
     const participantsList = participantsSet.size > 0 ? Array.from(participantsSet) : (fallbackParticipants || []);
-    const lines = [
+    const headerLines = [
       `Conversation: ${title}`,
       `Participants: ${participantsList.join(', ')}`,
       `----------------------------------------`
     ];
 
     if (hasDating || title.includes('Hẹn hò') || title.includes('Dating')) {
-      lines.push(`[LƯU Ý / NOTE FOR AI]: Đoạn chat này chứa dữ liệu từ tệp Facebook Dating (dating/messages/*.json). Tệp Facebook Dating gốc CHỈ LƯU DUY NHẤT tin nhắn do bạn gửi đi, HOÀN TOÀN KHÔNG LƯU tin nhắn phản hồi của đối phương.`);
-      lines.push(`[MẸO ĐỒNG BỘ / DATING SYNC TIP]: Cần chọn bấm nút 'Gửi thông tin / Chuyển sang Messenger' trực tiếp từ Facebook Dating thay vì gửi link Profile rồi tự kết bạn nhắn riêng, để Facebook tự động đồng bộ đầy đủ lịch sử chat 2 chiều sang Messenger kèm nhãn 'Đã gửi từ Hẹn hò trên Facebook'.`);
-      lines.push(`----------------------------------------`);
+      headerLines.push(`[LƯU Ý / NOTE FOR AI]: Đoạn chat này chứa dữ liệu từ tệp Facebook Dating (dating/messages/*.json). Tệp Facebook Dating gốc CHỈ LƯU DUY NHẤT tin nhắn do bạn gửi đi, HOÀN TOÀN KHÔNG LƯU tin nhắn phản hồi của đối phương.`);
+      headerLines.push(`[MẸO ĐỒNG BỘ / DATING SYNC TIP]: Cần chọn bấm nút 'Gửi thông tin / Chuyển sang Messenger' trực tiếp từ Facebook Dating thay vì gửi link Profile rồi tự kết bạn nhắn riêng, để Facebook tự động đồng bộ đầy đủ lịch sử chat 2 chiều sang Messenger kèm nhãn 'Đã gửi từ Hẹn hò trên Facebook'.`);
+      headerLines.push(`----------------------------------------`);
     }
 
+    const msgLines = [];
     let inDatingBlock = false;
 
     for (const msg of sorted) {
@@ -947,14 +948,14 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
 
       if (isDatingMsg && !inDatingBlock) {
         inDatingBlock = true;
-        lines.push(`----------------------------------------`);
-        lines.push(`[BẮT ĐẦU CHAT HẸN HÒ / START DATING CHAT - NOTE FOR AI]: Bắt đầu đoạn tin nhắn từ Facebook Dating (dating/messages/*.json). Tệp Hẹn hò gốc chỉ lưu tin nhắn 1 chiều do bạn gửi đi.`);
-        lines.push(`----------------------------------------`);
+        msgLines.push(`----------------------------------------`);
+        msgLines.push(`[BẮT ĐẦU CHAT HẸN HÒ / START DATING CHAT - NOTE FOR AI]: Bắt đầu đoạn tin nhắn từ Facebook Dating (dating/messages/*.json). Tệp Hẹn hò gốc chỉ lưu tin nhắn 1 chiều do bạn gửi đi.`);
+        msgLines.push(`----------------------------------------`);
       } else if (!isDatingMsg && inDatingBlock) {
         inDatingBlock = false;
-        lines.push(`----------------------------------------`);
-        lines.push(`[KẾT THÚC CHAT HẸN HÒ / END DATING CHAT - NOTE FOR AI]: Kết thúc đoạn tin nhắn từ Facebook Dating. Các tin nhắn tiếp theo bên dưới là từ Messenger chính thức (hội thoại 2 chiều).`);
-        lines.push(`----------------------------------------`);
+        msgLines.push(`----------------------------------------`);
+        msgLines.push(`[KẾT THÚC CHAT HẸN HÒ / END DATING CHAT - NOTE FOR AI]: Kết thúc đoạn tin nhắn từ Facebook Dating. Các tin nhắn tiếp theo bên dưới là từ Messenger chính thức (hội thoại 2 chiều).`);
+        msgLines.push(`----------------------------------------`);
       }
 
       const contentStr = msg.content || msg.text || msg.body || '';
@@ -971,13 +972,50 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
       if (timestampMs > 0 && timestampMs < 1000000000000) timestampMs *= 1000;
 
       const timeStr = formatTimestampToReadable(timestampMs);
-      lines.push(`[${timeStr}] ${sender}: ${decodedContent}`);
+      msgLines.push(`[${timeStr}] ${sender}: ${decodedContent}`);
     }
 
     if (inDatingBlock) {
-      lines.push(`----------------------------------------`);
-      lines.push(`[KẾT THÚC CHAT HẸN HÒ / END DATING CHAT - NOTE FOR AI]: Kết thúc đoạn tin nhắn từ Facebook Dating.`);
-      lines.push(`----------------------------------------`);
+      msgLines.push(`----------------------------------------`);
+      msgLines.push(`[KẾT THÚC CHAT HẸN HÒ / END DATING CHAT - NOTE FOR AI]: Kết thúc đoạn tin nhắn từ Facebook Dating.`);
+      msgLines.push(`----------------------------------------`);
+    }
+
+    const parts = [];
+    const limit = (splitLimit && splitLimit > 0) ? splitLimit : 0;
+
+    if (limit > 0) {
+      let currentPartLines = [...headerLines];
+      let currentLen = currentPartLines.join('\n').length;
+
+      for (const line of msgLines) {
+        const lineLen = line.length + 1;
+        if (currentLen + lineLen > limit && currentPartLines.length > headerLines.length) {
+          parts.push({
+            partIndex: parts.length + 1,
+            textContent: currentPartLines.join('\n')
+          });
+          currentPartLines = [...headerLines, line];
+          currentLen = currentPartLines.join('\n').length;
+        } else {
+          currentPartLines.push(line);
+          currentLen += lineLen;
+        }
+      }
+      if (currentPartLines.length > 0) {
+        parts.push({
+          partIndex: parts.length + 1,
+          textContent: currentPartLines.join('\n')
+        });
+      }
+      parts.forEach(p => p.totalParts = parts.length);
+    } else {
+      const fullText = [...headerLines, ...msgLines].join('\n');
+      parts.push({
+        partIndex: 1,
+        totalParts: 1,
+        textContent: fullText
+      });
     }
 
     self.postMessage({
@@ -985,7 +1023,8 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
       data: {
         title: title,
         jsonContent: null,
-        textContent: lines.join('\n'),
+        textContent: parts[0].textContent,
+        parts: parts,
         format: 'plain_text'
       }
     });
@@ -1174,11 +1213,54 @@ async function exportChatJson(fileIndices, title, format, fallbackMessagesList, 
     };
   }
 
+  const parts = [];
+  const limit = (splitLimit && splitLimit > 0) ? splitLimit : 0;
+
+  if (limit > 0 && Array.isArray(outputObj.messages) && outputObj.messages.length > 0) {
+    const allMessages = outputObj.messages;
+    const baseObj = { ...outputObj, messages: [] };
+
+    let currentChunk = [];
+    for (const msg of allMessages) {
+      const testObj = { ...baseObj, messages: [...currentChunk, msg], part: parts.length + 1, total_parts: 1 };
+      const testJsonStr = JSON.stringify(testObj, null, 2);
+
+      if (testJsonStr.length > limit && currentChunk.length > 0) {
+        parts.push({
+          partIndex: parts.length + 1,
+          jsonContent: { ...baseObj, messages: currentChunk, part: parts.length + 1 }
+        });
+        currentChunk = [msg];
+      } else {
+        currentChunk.push(msg);
+      }
+    }
+
+    if (currentChunk.length > 0) {
+      parts.push({
+        partIndex: parts.length + 1,
+        jsonContent: { ...baseObj, messages: currentChunk, part: parts.length + 1 }
+      });
+    }
+
+    parts.forEach(p => {
+      p.totalParts = parts.length;
+      p.jsonContent.total_parts = parts.length;
+    });
+  } else {
+    parts.push({
+      partIndex: 1,
+      totalParts: 1,
+      jsonContent: outputObj
+    });
+  }
+
   self.postMessage({
     type: 'EXPORT_CHAT_JSON_COMPLETE',
     data: {
       title: title,
       jsonContent: outputObj,
+      parts: parts,
       format: format
     }
   });

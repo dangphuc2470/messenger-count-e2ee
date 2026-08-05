@@ -10,7 +10,7 @@ import {
 import { Chart, registerables } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
 import html2canvas from 'html2canvas-pro';
-import { Unzip, UnzipInflate, UnzipPassThrough } from 'fflate';
+import { Unzip, UnzipInflate, UnzipPassThrough, zipSync, strToU8 } from 'fflate';
 
 // Register Chart.js components
 Chart.register(...registerables, zoomPlugin);
@@ -462,6 +462,8 @@ function App() {
   const [showDetailExportMenu, setShowDetailExportMenu] = useState(false);
   const [isExportingDetailJson, setIsExportingDetailJson] = useState(false);
   const [isExportingDetailImage, setIsExportingDetailImage] = useState(false);
+  const [enableSplitFile, setEnableSplitFile] = useState(true);
+  const [maxCharsPerFile, setMaxCharsPerFile] = useState(30000);
   const detailReportRef = useRef(null);
   const detailExportMenuRef = useRef(null);
 
@@ -793,26 +795,64 @@ function App() {
         title: selectedGroupDetails.title,
         format,
         messagesList: selectedGroupDetails.messagesList,
-        participants: selectedGroupDetails.participants
+        participants: selectedGroupDetails.participants,
+        splitLimit: enableSplitFile ? maxCharsPerFile : 0
       }
     });
   };
 
-  const handleDownloadDetailJsonComplete = (data) => {
-    const { title, jsonContent, textContent, format } = data;
+  const handleDownloadDetailJsonComplete = async (data) => {
+    const { title, jsonContent, textContent, parts, format } = data;
     const sanitizedTitle = title.replace(/[/\\:*?"<>|]/g, '').replace(/\s+/g, '_');
 
-    const link = document.createElement('a');
-    if (format === 'plain_text') {
-      const dataStr = "data:text/plain;charset=utf-8," + encodeURIComponent(textContent || '');
-      link.download = `${sanitizedTitle}_messages_plain_text.txt`;
-      link.href = dataStr;
+    if (parts && parts.length > 1) {
+      // Pack all parts into a single ZIP file
+      const zipData = {};
+      const ext = format === 'plain_text' ? 'txt' : 'json';
+
+      parts.forEach((part) => {
+        const fileName = `${sanitizedTitle}_messages_${format}_part${part.partIndex}.${ext}`;
+        const contentStr = format === 'plain_text'
+          ? (part.textContent || '')
+          : JSON.stringify(part.jsonContent, null, 2);
+        zipData[fileName] = strToU8(contentStr);
+      });
+
+      const zipped = zipSync(zipData);
+      const blob = new Blob([zipped], { type: 'application/zip' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${sanitizedTitle}_messages_${format}_parts.zip`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } else if (parts && parts.length === 1) {
+      const part = parts[0];
+      const link = document.createElement('a');
+      if (format === 'plain_text') {
+        const dataStr = "data:text/plain;charset=utf-8," + encodeURIComponent(part.textContent || '');
+        link.download = `${sanitizedTitle}_messages_plain_text.txt`;
+        link.href = dataStr;
+      } else {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(part.jsonContent, null, 2));
+        link.download = `${sanitizedTitle}_messages_${format}.json`;
+        link.href = dataStr;
+      }
+      link.click();
     } else {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(jsonContent, null, 2));
-      link.download = `${sanitizedTitle}_messages_${format}.json`;
-      link.href = dataStr;
+      const link = document.createElement('a');
+      if (format === 'plain_text') {
+        const dataStr = "data:text/plain;charset=utf-8," + encodeURIComponent(textContent || '');
+        link.download = `${sanitizedTitle}_messages_plain_text.txt`;
+        link.href = dataStr;
+      } else {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(jsonContent, null, 2));
+        link.download = `${sanitizedTitle}_messages_${format}.json`;
+        link.href = dataStr;
+      }
+      link.click();
     }
-    link.click();
+
     setIsExportingDetailJson(false);
     setShowDetailExportMenu(false);
   };
@@ -3515,6 +3555,32 @@ function App() {
 
                   {showDetailExportMenu && (
                     <div className="absolute right-0 top-full mt-1.5 w-72 rounded-2xl bg-white border border-[#CAC4D0] shadow-lg py-2.5 z-50 font-sans text-xs">
+                      {/* Split File Option */}
+                      <div className="px-4 py-2 bg-[#F0F4F9] border-b border-[#CAC4D0]/50 mb-2 font-sans">
+                        <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-[#1D1B20]">
+                          <input
+                            type="checkbox"
+                            checked={enableSplitFile}
+                            onChange={(e) => setEnableSplitFile(e.target.checked)}
+                            className="w-4 h-4 text-[#0B57D0] rounded focus:ring-[#0B57D0] cursor-pointer"
+                          />
+                          <span>{lang === 'vi' ? 'Tách file (tải nhiều Part)' : 'Split file (multi-part download)'}</span>
+                        </label>
+                        {enableSplitFile && (
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            <span className="text-[10px] text-[#49454F] font-semibold">{lang === 'vi' ? 'Giới hạn ký tự/file:' : 'Chars per file:'}</span>
+                            <input
+                              type="number"
+                              min="1000"
+                              step="5000"
+                              value={maxCharsPerFile}
+                              onChange={(e) => setMaxCharsPerFile(Math.max(1000, parseInt(e.target.value) || 30000))}
+                              className="w-24 px-2 py-1 text-xs border border-[#CAC4D0] rounded-lg bg-white text-right font-mono font-bold text-[#0B57D0]"
+                            />
+                          </div>
+                        )}
+                      </div>
+
                       <button
                         onClick={() => handleExportDetailJson('mine')}
                         className="w-full text-left px-4 py-2 hover:bg-[#F0F4F9] text-[#1D1B20] transition-colors flex flex-col font-bold cursor-pointer"
